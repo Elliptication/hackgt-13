@@ -1,8 +1,124 @@
-import fastapi
-from fastapi import APIRouter
+from fastapi import APIRouter, Request, HTTPException
+from fastapi.responses import RedirectResponse, JSONResponse
+import requests
+import os
+import re
+from dotenv import load_dotenv
+import jwt
+import datetime
+import secrets
+import urllib.parse
+from urllib.parse import urlparse
+import logging
+
+
+load_dotenv()
 
 router = APIRouter(prefix='/auth', tags=['auth'])
 
-# @router.get("/")
-# async def list_users():
-#     return [{"id": 1, "name": "Ada"}]
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+# Google OAuth credentials
+CLIENT_ID = os.getenv('GOOGLE_CLIENT_ID')
+CLIENT_SECRET = os.getenv('GOOGLE_CLIENT_SECRET')
+JWT_SECRET = os.getenv('JWT_SECRET', 'your_jwt_secret')
+
+returnUrl = ""
+
+REDIRECT_URI = os.getenv('GOOGLE_REDIRECT_URI', returnUrl + '/callback')
+FRONTEND_URL = returnUrl
+
+AUTH_URL = 'https://accounts.google.com/o/oauth2/v2/auth'
+TOKEN_URL = 'https://oauth2.googleapis.com/token'
+USERINFO_URL = 'https://www.googleapis.com/oauth2/v2/userinfo'
+
+
+
+
+
+@router.get("/")
+def home():
+    return {"message": "Welcome to the Google OAuth App"}
+
+# This route redirects the user to the Google OAuth login page
+@router.get("/login")
+def login():
+    params = {
+        'client_id': CLIENT_ID,
+        'redirect_uri': REDIRECT_URI,
+        'response_type': 'code',
+        'scope': 'openid email profile',
+        'state': secrets.token_urlsafe(32),
+    }
+    auth_url = f"{AUTH_URL}?{urllib.parse.urlencode(params)}"
+    response = RedirectResponse(auth_url)
+    response.set_cookie(key='oauth_state', value=state, httponly=True, secure=True, samesite='lax', domain=urlparse(FRONTEND_URL).netloc)
+    return RedirectResponse(auth_url)
+
+
+
+@router.get("/callback")
+def callback(request: Request):
+
+    expected_state = request.cookies.get('oauth_state')
+    actual_state = request.query_params.get('state')
+    if not expected_state or expected_state != actual_state:
+        raise HTTPException(status_code=400, detail="State mismatch")
+
+    # Get the code from the query parameters
+    code = request.query_params.get('code')
+    if not code:
+        raise HTTPException(status_code=400, detail="Error: No code provided")
+
+    # Get the access token from GitHub
+    token_data = {
+        'client_id': CLIENT_ID,
+        'client_secret': CLIENT_SECRET,
+        'code': code,
+        'grant_type': 'authorization_code',
+        'redirect_uri': REDIRECT_URI,
+    }
+    token_response = requests.post(TOKEN_URL, data=token_data)
+    token_response.raise_for_status()
+    token_json = token_response.json()
+    access_token = token_json.get('access_token')
+
+    if not access_token:
+        raise HTTPException(status_code=400, detail="Error: No access token received")
+
+    user_info_response = requests.get(USERINFO_URL, headers={'Authorization': f'Bearer {access_token}'})
+    user_info = user_info_response.json()
+    user_id = user_info.get('sub')
+    email = user_info.get('email')
+    name = user_info.get('name')
+
+    # Generate JWT
+    payload = {
+        'sub': user_id,
+        'email': email,
+        'name': name,
+        'exp': datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(hours=1),
+    }
+    token = jwt.encode(payload, JWT_SECRET, algorithm='HS256')
+
+    # Set JWT in cookie
+    response = RedirectResponse(url=FRONTEND_URL) #https://letssign.xyz
+    response.set_cookie(key='jwt', value=token, httponly=True, secure=True, samesite='lax', domain=urlparse(FRONTEND_URL).netloc)
+    response.set_cookie(key='user_id', value=str(user_id), httponly=True, secure=True, samesite='lax', domain=urlparse(FRONTEND_URL).netloc)
+    response.set_cookie(key='username', value=str(name), httponly=True, secure=True, samesite='lax', domain=urlparse(FRONTEND_URL).netloc)
+    return response
+
+# A utility for debugging, specifically to check the contents and validility of the JWT
+@router.get("/verify-token")
+def verify_token(request: Request):
+    token = request.cookies.get('jwt')
+    if not token:
+        raise HTTPException(status_code=401, detail="No token found")
+    try:
+        decoded = jwt.decode(token, JWT_SECRET, algorithms=['HS256'])
+        return JSONResponse(content=decoded)
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(status_code=401, detail="Token has expired")
+    except jwt.InvalidTokenError:
+        raise HTTPException(status_code=401, detail="Invalid token")
