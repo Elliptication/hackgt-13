@@ -1,4 +1,4 @@
-import type { AccessFeature } from '@/lib/features'
+import type { AccessFeature } from '@/types/features'
 
 export const SAMPLE_FEATURES: AccessFeature[] = [
   {

@@ -21,7 +21,7 @@ type ButtonProps = ComponentProps<typeof Link> & {
 export function Button({ variant = 'primary', size = 'lg', className = '', ...props }: ButtonProps) {
   return (
     <Link
-      className={`inline-flex items-center justify-center rounded-full font-medium whitespace-nowrap transition duration-200 select-none motion-safe:active:scale-[0.98] ${variants[variant]} ${sizes[size]} ${className}`}
+      className={`inline-flex items-center justify-center rounded-lg font-medium whitespace-nowrap transition duration-200 select-none motion-safe:active:scale-[0.98] ${variants[variant]} ${sizes[size]} ${className}`}
       {...props}
     />
   )

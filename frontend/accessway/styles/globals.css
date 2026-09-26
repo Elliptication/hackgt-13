@@ -35,7 +35,7 @@
   --tag-yellow-bg: #fbf3db;
 }
 
-@media (prefers-color-scheme: dark) {
+/* @media (prefers-color-scheme: dark) {
   :root {
     --background: #191919;
     --foreground: #d4d4d4;
@@ -64,7 +64,7 @@
     --tag-yellow: #ca9849;
     --tag-yellow-bg: #35301f;
   }
-}
+} */
 
 @theme inline {
   --color-background: var(--background);
@@ -81,7 +81,6 @@
   --color-ring: var(--ring);
 
   --font-sans: var(--font-inter), ui-sans-serif, -apple-system, "Segoe UI", Helvetica, Arial, sans-serif;
-  /* Rounded, friendly face for headings */
   --font-display: var(--font-nunito), var(--font-inter), ui-sans-serif, sans-serif;
 }
 

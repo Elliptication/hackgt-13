@@ -1,7 +1,9 @@
-import { ArrowRight, Flag, MapPinned, Search, Sparkles } from 'lucide-react'
+import { ArrowRight, Camera, Coins, Flag, MapPinned, Search, Sparkles } from 'lucide-react'
 
 import { Button } from '@/components/Button'
-import { FEATURE_TYPES, type FeatureType } from '@/lib/features'
+import { FEATURE_TYPES } from '@/data/FeatureTypes'
+import type { FeatureType } from '@/types/features'
+import { REWARD_CENTS, VOTES_TO_APPROVE } from '@/lib/constants'
 
 const HIGHLIGHTS: FeatureType[] = ['ramp', 'elevator', 'entrance', 'restroom']
 
@@ -33,7 +35,6 @@ export function Hero() {
   return (
     <>
       <section className="relative isolate overflow-hidden">
-        {/* Soft pastel glow behind the headline */}
         <div aria-hidden="true" className="pointer-events-none absolute inset-0 -z-10">
           <div className="absolute top-10 left-1/2 size-[28rem] -translate-x-[85%] rounded-full bg-[var(--tag-blue-bg)] opacity-100 blur-3xl" />
           <div className="absolute top-24 left-1/2 size-[24rem] -translate-x-[5%] rounded-full bg-[var(--tag-yellow-bg)] opacity-100 blur-3xl" />
@@ -41,11 +42,6 @@ export function Hero() {
         </div>
 
         <div className="mx-auto max-w-3xl px-6 pt-20 pb-20 text-center sm:pt-28">
-          <p className="inline-flex items-center gap-1.5 rounded-full bg-background/70 px-3 py-1 text-sm text-muted ring-1 ring-border backdrop-blur">
-            <Sparkles className="size-3.5 text-[var(--tag-yellow)]" aria-hidden="true" />
-            A friendlier way to get around
-          </p>
-
           <h1 className="mt-6 text-4xl leading-[1.1] font-bold tracking-tight text-balance sm:text-6xl">
             Get where you’re going, <span className="text-primary">your way.</span>
           </h1>
@@ -99,6 +95,28 @@ export function Hero() {
               </li>
             ))}
           </ol>
+        </div>
+      </section>
+
+      <section className="px-6 pb-20">
+        <div className="mx-auto flex max-w-5xl flex-col items-center gap-6 rounded-3xl bg-[var(--tag-yellow-bg)] px-6 py-10 text-center sm:flex-row sm:px-10 sm:text-left">
+          <span className="grid size-16 shrink-0 place-items-center rounded-full bg-background">
+            <Camera className="size-7 text-[var(--tag-yellow)]" aria-hidden="true" />
+          </span>
+          <div className="flex-1">
+            <h2 className="text-2xl font-bold tracking-tight">Snap a photo, earn {REWARD_CENTS}¢</h2>
+            <p className="mt-1 text-muted">
+              Spot a ramp or elevator? Add a photo. Once {VOTES_TO_APPROVE} people confirm it, it goes on the map and you get paid.
+            </p>
+          </div>
+          <div className="flex flex-wrap justify-center gap-2">
+            <Button href="/contribute">
+              <Coins className="size-4" aria-hidden="true" /> Start earning
+            </Button>
+            <Button href="/contribute?tab=review" variant="ghost" className="bg-background/60">
+              Review photos
+            </Button>
+          </div>
         </div>
       </section>
     </>

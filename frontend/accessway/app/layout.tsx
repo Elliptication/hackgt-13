@@ -25,10 +25,7 @@ export default function RootLayout({ children }: LayoutProps<'/'>) {
   return (
     <html lang="en" suppressHydrationWarning className={`${inter.variable} ${nunito.variable}`}>
       <body>
-        <a
-          href="#main"
-          className="sr-only focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-[60] focus:rounded-full focus:bg-background focus:px-3 focus:py-2 focus:text-sm focus:shadow"
-        >
+        <a href="#main" className="sr-only focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-[60] focus:rounded-full focus:bg-background focus:px-3 focus:py-2 focus:text-sm focus:shadow">
           Skip to content
         </a>
         <Providers>{children}</Providers>

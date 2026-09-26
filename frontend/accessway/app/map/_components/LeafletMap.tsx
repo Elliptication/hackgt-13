@@ -3,9 +3,11 @@
 import 'leaflet/dist/leaflet.css'
 
 import { useEffect, useState } from 'react'
-import { CircleMarker, MapContainer, Popup, TileLayer, useMap } from 'react-leaflet'
+import { CircleMarker, MapContainer, Popup, TileLayer, useMap, ZoomControl } from 'react-leaflet'
 
-import { FEATURE_TYPES, type AccessFeature } from '@/lib/features'
+import { FEATURE_TYPES } from '@/data/FeatureTypes'
+import type { AccessFeature } from '@/types/features'
+import { MAX_ZOOM, TILE_ATTRIBUTION, TILE_URL } from '@/lib/map'
 
 const DEFAULT_CENTER: [number, number] = [33.7756, -84.3963] // Georgia Tech
 const DEFAULT_ZOOM = 16
@@ -32,21 +34,18 @@ function FlyToSelected({ feature }: { feature?: AccessFeature }) {
 }
 
 export default function LeafletMap({ features, selectedId, onSelect }: Props) {
-  const [colors, setColors] = useState<Record<string, string>>({})
-
-  // Resolve the CSS-variable tag colors once the page is in the browser
-  useEffect(() => {
-    setColors(Object.fromEntries(Object.entries(FEATURE_TYPES).map(([k, v]) => [k, resolveCssColor(v.color)])))
-  }, [])
+  // This component only renders in the browser, so the CSS variables can be read right away
+  const [colors] = useState<Record<string, string>>(() =>
+    Object.fromEntries(Object.entries(FEATURE_TYPES).map(([k, v]) => [k, resolveCssColor(v.color)])),
+  )
 
   const selected = features.find((f) => f.id === selectedId)
 
   return (
-    <MapContainer center={DEFAULT_CENTER} zoom={DEFAULT_ZOOM} className="h-full w-full" scrollWheelZoom>
-      <TileLayer
-        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
-        url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
-      />
+    <MapContainer center={DEFAULT_CENTER} zoom={DEFAULT_ZOOM} className="h-full w-full" scrollWheelZoom zoomControl={false}>
+      <TileLayer attribution={TILE_ATTRIBUTION} url={TILE_URL} maxZoom={MAX_ZOOM} />
+      {/* Bottom-right, out of the side panel’s way (like Google Maps) */}
+      <ZoomControl position="bottomright" />
       <FlyToSelected feature={selected} />
 
       {features.map((f) => {
@@ -67,6 +66,10 @@ export default function LeafletMap({ features, selectedId, onSelect }: Props) {
             eventHandlers={{ click: () => onSelect(f.id) }}
           >
             <Popup>
+              {f.photoUrl && (
+                // eslint-disable-next-line @next/next/no-img-element -- community upload
+                <img src={f.photoUrl} alt={f.description ?? f.name} className="mb-2 aspect-[4/3] w-52 rounded-lg object-cover" />
+              )}
               <strong className="block text-sm">{f.name}</strong>
               <span className="text-xs" style={{ color: 'var(--muted)' }}>
                 {FEATURE_TYPES[f.type].label}
