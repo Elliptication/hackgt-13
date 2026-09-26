@@ -24,7 +24,7 @@ CLIENT_ID = os.getenv('GOOGLE_CLIENT_ID')
 CLIENT_SECRET = os.getenv('GOOGLE_CLIENT_SECRET')
 JWT_SECRET = os.getenv('JWT_SECRET', 'your_jwt_secret')
 
-returnUrl = ""
+returnUrl = "https://accessway.tech"
 
 REDIRECT_URI = os.getenv('GOOGLE_REDIRECT_URI', returnUrl + '/callback')
 FRONTEND_URL = returnUrl
@@ -44,6 +44,7 @@ def home():
 # This route redirects the user to the Google OAuth login page
 @router.get("/login")
 def login():
+    state = secrets.token_urlsafe(32)
     params = {
         'client_id': CLIENT_ID,
         'redirect_uri': REDIRECT_URI,
@@ -60,7 +61,6 @@ def login():
 
 @router.get("/callback")
 def callback(request: Request):
-
     expected_state = request.cookies.get('oauth_state')
     actual_state = request.query_params.get('state')
     if not expected_state or expected_state != actual_state:
@@ -71,7 +71,7 @@ def callback(request: Request):
     if not code:
         raise HTTPException(status_code=400, detail="Error: No code provided")
 
-    # Get the access token from GitHub
+    # Get the access token from Google
     token_data = {
         'client_id': CLIENT_ID,
         'client_secret': CLIENT_SECRET,
@@ -103,11 +103,19 @@ def callback(request: Request):
     token = jwt.encode(payload, JWT_SECRET, algorithm='HS256')
 
     # Set JWT in cookie
-    response = RedirectResponse(url=FRONTEND_URL) #https://letssign.xyz
+    response = RedirectResponse(url=FRONTEND_URL)
     response.set_cookie(key='jwt', value=token, httponly=True, secure=True, samesite='lax', domain=urlparse(FRONTEND_URL).netloc)
     response.set_cookie(key='user_id', value=str(user_id), httponly=True, secure=True, samesite='lax', domain=urlparse(FRONTEND_URL).netloc)
     response.set_cookie(key='username', value=str(name), httponly=True, secure=True, samesite='lax', domain=urlparse(FRONTEND_URL).netloc)
     return response
+
+
+@router.get("/profile")
+def get_profile(request: Request):
+    user_id = request.cookies.get("user_id")
+    username = request.cookies.get("username")
+    verify_token()
+    return user_id, username
 
 # A utility for debugging, specifically to check the contents and validility of the JWT
 @router.get("/verify-token")
