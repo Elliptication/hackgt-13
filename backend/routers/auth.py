@@ -44,6 +44,7 @@ def home():
 # This route redirects the user to the Google OAuth login page
 @router.get("/login")
 def login():
+    state = secrets.token_urlsafe(32)
     params = {
         'client_id': CLIENT_ID,
         'redirect_uri': REDIRECT_URI,
@@ -60,7 +61,6 @@ def login():
 
 @router.get("/callback")
 def callback(request: Request):
-
     expected_state = request.cookies.get('oauth_state')
     actual_state = request.query_params.get('state')
     if not expected_state or expected_state != actual_state:
