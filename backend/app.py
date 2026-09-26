@@ -1,9 +1,10 @@
 import fastapi
 from fastapi.responses import Response
 from pydantic import BaseModel
-from auth import router as auth_router
+# from auth import router as auth_router
 from fastapi import APIRouter as base_router
 from fastapi.middleware.cors import CORSMiddleware
+from routers import features
 
 
 
@@ -23,11 +24,17 @@ app.add_middleware(
 )
 
 
-app.include_router(base_router)
-app.include_router(auth_router)
+# app.include_router(base_router)
+# app.include_router(auth_router)
 
 
 
 @app.get("/")
 def root(): 
     return "hello world!"
+# app.include(auth.router)
+app.include_router(features.router)
+
+if __name__ == '__main__':
+    import uvicorn
+    uvicorn.run(app, host='0.0.0.0', port=6767)
