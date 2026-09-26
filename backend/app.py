@@ -4,6 +4,7 @@ from pydantic import BaseModel
 #from auth import router as auth_router
 from routes.route import router as base_router
 from fastapi.middleware.cors import CORSMiddleware
+from routers import auth, features
 
 
 
@@ -22,4 +23,7 @@ app.add_middleware(
 )
 
 
-app.include_router(base_router)
+# app.include_router(base_router)
+
+app.include(auth.router)
+app.include(features.router)
