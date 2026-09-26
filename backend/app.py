@@ -24,7 +24,7 @@ app.add_middleware(
 )
 
 
-app.include_router(base_router)
+# app.include_router(base_router)
 # app.include_router(auth_router)
 
 
