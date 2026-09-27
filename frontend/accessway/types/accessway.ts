@@ -69,10 +69,13 @@ export type ContributionRef = {
 export type ContributionRow = {
   id: number | string
   created_at: string
-  /** Google `sub` of the uploader. Used to keep people off their own photos. */
-  user_id: string
-  /** The join key back to `GET /features`. */
-  feature_id: number | string
+  /**
+   * Google `sub` of the uploader. Null on rows not created through the upload
+   * flow, which is the only thing that fills it in from the session.
+   */
+  user_id: string | null
+  /** The join key back to `GET /features`. Null on an orphaned row. */
+  feature_id: number | string | null
   /** Storage path inside the `contribution_images` bucket, never a URL. */
   image_path: string | null
 }
