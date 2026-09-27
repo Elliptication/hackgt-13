@@ -12,6 +12,7 @@ origins = [
     "https://accessway.tech",
     "https://www.accessway.tech",
     "http://localhost:3000",
+    "https://api.accessway.tech"
 ]
 
 app.add_middleware(
