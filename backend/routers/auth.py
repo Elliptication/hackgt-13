@@ -2,31 +2,25 @@ from fastapi import APIRouter, Request, HTTPException
 from fastapi.responses import RedirectResponse, JSONResponse
 import requests
 import os
-import re
-from dotenv import load_dotenv
+from workers import env
 import jwt
 import datetime
 import secrets
 import urllib.parse
 from urllib.parse import urlparse
-import logging
 
-
-load_dotenv()
 
 router = APIRouter(prefix='/auth', tags=['auth'])
 
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
 
 # Google OAuth credentials
-CLIENT_ID = os.getenv('GOOGLE_CLIENT_ID')
-CLIENT_SECRET = os.getenv('GOOGLE_CLIENT_SECRET')
-JWT_SECRET = os.getenv('JWT_SECRET', 'your_jwt_secret')
+CLIENT_ID = env.GOOGLE_CLIENT_ID
+CLIENT_SECRET = env.GOOGLE_CLIENT_SECRET
+JWT_SECRET = env.JWT_SECRET
 
 returnUrl = "https://accessway.tech"
 
-REDIRECT_URI = os.getenv('GOOGLE_REDIRECT_URI', returnUrl + '/callback')
+REDIRECT_URI = getattr(env, 'GOOGLE_REDIRECT_URI', returnUrl + '/callback')
 FRONTEND_URL = returnUrl
 
 AUTH_URL = 'https://accounts.google.com/o/oauth2/v2/auth'

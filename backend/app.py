@@ -33,6 +33,7 @@ def root():
 # app.include(auth.router)
 app.include_router(features.router)
 
-if __name__ == '__main__':
-    import uvicorn
-    uvicorn.run(app, host='0.0.0.0', port=6767)
+# if __name__ == '__main__':
+#     import uvicorn
+#     uvicorn.run(app, host='0.0.0.0', port=6767)
+
