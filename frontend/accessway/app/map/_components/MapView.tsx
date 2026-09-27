@@ -2,8 +2,8 @@
 
 import dynamic from 'next/dynamic'
 import Link from 'next/link'
-import { Accessibility, Camera, Footprints, LoaderCircle, PanelLeftClose, PanelLeftOpen, Search, TriangleAlert, X } from 'lucide-react'
-import { useCallback, useId, useMemo, useState } from 'react'
+import { Accessibility, Camera, Crosshair, Footprints, LoaderCircle, PanelLeftClose, PanelLeftOpen, Search, TriangleAlert, X } from 'lucide-react'
+import { useCallback, useId, useMemo, useRef, useState } from 'react'
 
 import { AccessBadge } from '@/components/AccessBadge'
 
@@ -14,6 +14,7 @@ import { FEATURE_TYPES } from '@/data/FeatureTypes'
 import { useAuth } from '@/hooks/useAuth'
 import { useContributions } from '@/hooks/useContributions'
 import { useFeatures } from '@/hooks/useFeatures'
+import { useGeolocation } from '@/hooks/useGeolocation'
 import { useWalkable } from '@/hooks/useWalkable'
 import { usePlaceSearch } from '@/hooks/usePlaceSearch'
 import { useRoute } from '@/hooks/useRoute'
@@ -32,6 +33,7 @@ const LeafletMap = dynamic(() => import('./LeafletMap'), {
 })
 
 const EMPTY: Endpoint = { label: '', place: null, useMyLocation: false }
+const MY_LOCATION: Endpoint = { label: 'Your location', place: null, useMyLocation: true }
 
 type MapViewProps = {
   features: AccessFeature[]
@@ -47,7 +49,6 @@ type MapViewProps = {
  */
 export function MapView({ features: initialFeatures, notice = null }: MapViewProps) {
   const [query, setQuery] = useState('')
-  const [origin, setOrigin] = useState<LatLng | null>(null)
   const [bbox, setBbox] = useState<string | null>(null)
   const [zoom, setZoom] = useState<number | null>(null)
   const [selectedId, setSelectedId] = useState<string | null>(null)
@@ -55,13 +56,19 @@ export function MapView({ features: initialFeatures, notice = null }: MapViewPro
   const [showWalkable, setShowWalkable] = useState(false)
   const [pinningFor, setPinningFor] = useState<'from' | 'to' | null>(null)
 
-  const [from, setFrom] = useState<Endpoint>(EMPTY)
+  // Most trips start where you are, so that's the default. Easy to change:
+  // click "From" and search, drop a pin, or clear it.
+  const [from, setFrom] = useState<Endpoint>(MY_LOCATION)
   const [to, setTo] = useState<Endpoint>(EMPTY)
   const [active, setActive] = useState<'from' | 'to'>('to')
 
   const { user } = useAuth()
   const panelId = useId()
   const searchId = useId()
+  const searchRef = useRef<HTMLInputElement>(null)
+
+  const { position: myLocation, status: locationStatus, message: locationMessage, locate } = useGeolocation()
+  const origin: LatLng | null = myLocation
 
   const { features: surveyed, loading: loadingArea, error: areaError, tooFarOut, noBackend } = useFeatures(initialFeatures, bbox, zoom)
   const { contributions } = useContributions()
@@ -82,11 +89,24 @@ export function MapView({ features: initialFeatures, notice = null }: MapViewPro
     setBbox(next)
     setZoom(level)
   }, [])
-  const handleLocated = useCallback((at: LatLng) => {
-    setOrigin(at)
-    // First fix: assume it is where the trip starts, unless they said otherwise.
-    setFrom((current) => (current.place || current.useMyLocation ? current : { ...EMPTY, useMyLocation: true }))
-  }, [])
+
+  /** Clicking From or To makes it the one being set, and puts you in the search box. */
+  function activate(which: 'from' | 'to') {
+    setActive(which)
+    searchRef.current?.focus()
+  }
+
+  function chooseMyLocation(which: 'from' | 'to') {
+    if (which === 'from') {
+      setFrom(MY_LOCATION)
+      setActive('to')
+    } else {
+      setTo(MY_LOCATION)
+    }
+    setQuery('')
+    // Ask again if we don't have a fix yet (or the last attempt failed).
+    if (!myLocation && locationStatus !== 'locating') locate()
+  }
 
   const nearby = useMemo(() => features.slice(0, 60), [features])
 
@@ -255,15 +275,11 @@ export function MapView({ features: initialFeatures, notice = null }: MapViewPro
               from={from}
               to={to}
               active={active}
-              onActivate={setActive}
+              onActivate={activate}
               onClear={(which) => (which === 'from' ? setFrom(EMPTY) : setTo(EMPTY))}
               onDropPin={(which) => setPinningFor((current) => (current === which ? null : which))}
               pinningFor={pinningFor}
-              onUseMyLocation={(which) =>
-                which === 'from'
-                  ? setFrom({ ...EMPTY, useMyLocation: true })
-                  : setTo({ ...EMPTY, useMyLocation: true })
-              }
+              onUseMyLocation={chooseMyLocation}
               onSwap={() => {
                 setFrom(to)
                 setTo(from)
@@ -272,6 +288,8 @@ export function MapView({ features: initialFeatures, notice = null }: MapViewPro
               canPlan={canPlan && to.place !== null}
               planning={routing}
               hasLocation={origin !== null}
+              locationStatus={locationStatus}
+              locationMessage={locationMessage}
             />
 
             <div className="p-4 pb-2">
@@ -281,6 +299,7 @@ export function MapView({ features: initialFeatures, notice = null }: MapViewPro
               <div className="relative">
                 <Search className="pointer-events-none absolute top-1/2 left-3.5 size-[18px] -translate-y-1/2 text-subtle" aria-hidden="true" />
                 <input
+                  ref={searchRef}
                   id={searchId}
                   type="search"
                   value={query}
@@ -347,6 +366,31 @@ export function MapView({ features: initialFeatures, notice = null }: MapViewPro
 
               {query.trim().length < 2 && (
                 <>
+                  {/* The quickest way to say "I'm starting from here" */}
+                  {active === 'from' && !from.useMyLocation && (
+                    <button
+                      type="button"
+                      onClick={() => chooseMyLocation('from')}
+                      className="mx-1 mb-2 flex w-[calc(100%-0.5rem)] items-center gap-3 rounded-2xl px-3 py-2.5 text-left transition-colors hover:bg-hover"
+                    >
+                      <span className="grid size-9 shrink-0 place-items-center rounded-full bg-primary-soft text-primary">
+                        {locationStatus === 'locating' ? (
+                          <LoaderCircle className="size-4 motion-safe:animate-spin" aria-hidden="true" />
+                        ) : (
+                          <Crosshair className="size-4" aria-hidden="true" />
+                        )}
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block text-sm font-medium">Your location</span>
+                        <span className="block truncate text-xs text-muted">
+                          {locationStatus === 'error' && !myLocation
+                            ? (locationMessage ?? "Couldn't find you. Tap to try again.")
+                            : 'Start the trip from where you are'}
+                        </span>
+                      </span>
+                    </button>
+                  )}
+
                   <label className="mx-1 mb-1 flex cursor-pointer items-center gap-3 rounded-2xl bg-surface px-3 py-2.5 text-sm ring-1 ring-border select-none has-focus-visible:ring-2 has-focus-visible:ring-ring">
                     <input
                       type="checkbox"
@@ -437,7 +481,10 @@ export function MapView({ features: initialFeatures, notice = null }: MapViewPro
           route={route}
           selectedId={selectedId}
           onSelect={setSelectedId}
-          onLocated={handleLocated}
+          myLocation={myLocation}
+          locationStatus={locationStatus}
+          locationMessage={locationMessage}
+          onLocate={locate}
           onBoundsChange={handleBounds}
           pinMode={pinningFor !== null}
           onPinDrop={dropPin}

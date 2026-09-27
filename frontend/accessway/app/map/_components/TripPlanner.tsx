@@ -32,6 +32,8 @@ type Props = {
   canPlan: boolean
   planning: boolean
   hasLocation: boolean
+  locationStatus: 'idle' | 'locating' | 'error'
+  locationMessage: string | null
 }
 
 function Field({
@@ -44,6 +46,8 @@ function Field({
   onDropPin,
   pinning,
   hasLocation,
+  locationStatus,
+  locationMessage,
 }: {
   which: 'from' | 'to'
   endpoint: Endpoint
@@ -54,9 +58,22 @@ function Field({
   onDropPin: () => void
   pinning: boolean
   hasLocation: boolean
+  locationStatus: 'idle' | 'locating' | 'error'
+  locationMessage: string | null
 }) {
-  const filled = endpoint.useMyLocation || endpoint.place !== null
-  const text = endpoint.useMyLocation ? 'My location' : (endpoint.place?.name ?? '')
+  const mine = endpoint.useMyLocation
+  // "My location" was chosen but the browser couldn't (or wouldn't) say where.
+  const failed = mine && !hasLocation && locationStatus === 'error'
+  const finding = mine && !hasLocation && !failed
+  const filled = (mine && !failed) || endpoint.place !== null
+  const text = mine ? (finding ? 'Finding your location…' : 'Your location') : (endpoint.place?.name ?? '')
+  const placeholder = failed
+    ? (locationMessage ?? "Couldn't find your location")
+    : pinning
+      ? 'Now click anywhere on the map'
+      : which === 'from'
+        ? 'Your location, a search, or a pin'
+        : 'Search, or drop a pin'
 
   return (
     <div
@@ -79,8 +96,13 @@ function Field({
         <span className="block text-[11px] tracking-wide text-muted uppercase">
           {which === 'from' ? 'From' : 'To'}
         </span>
-        <span className={`block truncate text-sm ${filled ? 'font-medium' : 'text-muted'}`}>
-          {filled ? text : pinning ? 'Now click anywhere on the map' : 'Search, or drop a pin'}
+        <span
+          className={`flex items-center gap-1.5 truncate text-sm ${filled && !finding ? 'font-medium' : 'text-muted'}`}
+          title={failed ? (locationMessage ?? undefined) : undefined}
+        >
+          {finding && <LoaderCircle className="size-3.5 shrink-0 motion-safe:animate-spin" aria-hidden="true" />}
+          {mine && !finding && !failed && <span className="size-2 shrink-0 rounded-full bg-[#0b6bcb]" aria-hidden="true" />}
+          <span className="truncate">{filled ? text : placeholder}</span>
         </span>
       </button>
 
@@ -95,11 +117,11 @@ function Field({
         </button>
       ) : (
         <span className="flex shrink-0 items-center gap-0.5">
-          {hasLocation && (
+          {(!mine || failed) && (
             <button
               type="button"
               onClick={onUseMyLocation}
-              title="Use my location"
+              title={failed ? 'Try finding my location again' : 'Use my location'}
               aria-label={`Use my location as the ${which === 'from' ? 'starting point' : 'destination'}`}
               className="grid size-8 place-items-center rounded-full text-primary hover:bg-hover"
             >
@@ -136,6 +158,8 @@ export function TripPlanner({
   canPlan,
   planning,
   hasLocation,
+  locationStatus,
+  locationMessage,
 }: Props) {
   return (
     <div className="flex flex-col gap-2 border-b border-border px-4 pt-1 pb-4">
@@ -149,6 +173,8 @@ export function TripPlanner({
         onDropPin={() => onDropPin('from')}
         pinning={pinningFor === 'from'}
         hasLocation={hasLocation}
+        locationStatus={locationStatus}
+        locationMessage={locationMessage}
       />
 
       <Field
@@ -161,6 +187,8 @@ export function TripPlanner({
         onDropPin={() => onDropPin('to')}
         pinning={pinningFor === 'to'}
         hasLocation={hasLocation}
+        locationStatus={locationStatus}
+        locationMessage={locationMessage}
       />
 
       {to.place && (

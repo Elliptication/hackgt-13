@@ -12,6 +12,7 @@ import type { KerbPoint, PathSegment } from '@/types/paths'
 import type { LatLng } from '@/types/places'
 import type { Route } from '@/types/routes'
 import type { Contribution } from '@/types/contribute'
+import type { GeoFix, GeoStatus } from '@/hooks/useGeolocation'
 
 import { DroppedPin } from './DroppedPin'
 import { FeatureMarker } from './FeatureMarker'
@@ -30,7 +31,11 @@ type Props = {
   route?: Route | null
   selectedId?: string | null
   onSelect?: (id: string) => void
-  onLocated?: (at: LatLng) => void
+  /** The person's own position, drawn as the blue dot. The map flies to each new fix. */
+  myLocation?: GeoFix | null
+  locationStatus?: GeoStatus
+  locationMessage?: string | null
+  onLocate?: () => void
   /** When set, the next map click drops a pin instead of doing nothing. */
   pinMode?: boolean
   onPinDrop?: (at: LatLng) => void
@@ -57,6 +62,22 @@ function FlyToSelected({ feature }: { feature?: AccessFeature }) {
     // Never zoom out on select: if they are already closer in, respect that.
     map.flyTo([feature.lat, feature.lng], Math.max(map.getZoom(), 18), { duration: 0.7 })
   }, [feature, map])
+
+  return null
+}
+
+/**
+ * Centre on the person each time a fresh location fix arrives — on load, and
+ * whenever they press the locate button. Each fix is a new object, so this
+ * fires once per fix, not on every render.
+ */
+function FlyToMe({ at }: { at?: GeoFix | null }) {
+  const map = useMap()
+
+  useEffect(() => {
+    if (!at) return
+    map.flyTo([at.lat, at.lng], Math.max(map.getZoom(), 17), { duration: 0.8 })
+  }, [at, map])
 
   return null
 }
@@ -109,7 +130,10 @@ export default function LeafletMap({
   route = null,
   selectedId = null,
   onSelect,
-  onLocated,
+  myLocation = null,
+  locationStatus = 'idle',
+  locationMessage = null,
+  onLocate,
   onBoundsChange,
   pinMode = false,
   onPinDrop,
@@ -134,7 +158,13 @@ export default function LeafletMap({
 
       {/* Bottom-right, out of the side panel's way (like Google Maps) */}
       <ZoomControl position="bottomright" />
-      <LocateButton onLocated={onLocated} />
+      <LocateButton
+        position={myLocation}
+        status={locationStatus}
+        message={locationMessage}
+        onLocate={() => onLocate?.()}
+      />
+      <FlyToMe at={myLocation} />
       <ReportBounds onChange={onBoundsChange} />
       <FlyToSelected feature={features.find((f) => f.id === selectedId)} />
       <PinDropper active={pinMode} onDrop={onPinDrop} />

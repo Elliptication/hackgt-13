@@ -1,10 +1,9 @@
 'use client'
 
 import { LocateFixed, LoaderCircle } from 'lucide-react'
-import { useCallback, useState } from 'react'
-import { CircleMarker, Circle, Tooltip, useMap } from 'react-leaflet'
+import { CircleMarker, Circle, Tooltip } from 'react-leaflet'
 
-type Position = { lat: number; lng: number; accuracy: number }
+import type { GeoFix, GeoStatus } from '@/hooks/useGeolocation'
 
 /**
  * Above this, the reported accuracy is a guess rather than a measurement — a
@@ -14,50 +13,22 @@ type Position = { lat: number; lng: number; accuracy: number }
 const ACCURACY_LIMIT_M = 150
 
 /**
- * "Where am I" — the starting point for every route.
+ * "Where am I" — the button on the map plus the blue dot.
  *
- * Geolocation needs a secure context, so it works on localhost and on HTTPS but
- * silently does nothing on a plain-http LAN address. If you're testing on a
- * phone against `http://192.168.x.x:3000`, that's why it won't work.
+ * The location itself lives in `useGeolocation` (owned by MapView) so the map,
+ * the trip planner and search all share one fix.
  */
-export function LocateButton({ onLocated }: { onLocated?: (at: Position) => void }) {
-  const map = useMap()
-  const [position, setPosition] = useState<Position | null>(null)
-  const [status, setStatus] = useState<'idle' | 'locating' | 'error'>('idle')
-  const [message, setMessage] = useState<string | null>(null)
-
-  const locate = useCallback(() => {
-    if (!navigator.geolocation) {
-      setStatus('error')
-      setMessage('This browser has no location support.')
-      return
-    }
-
-    setStatus('locating')
-    setMessage(null)
-
-    navigator.geolocation.getCurrentPosition(
-      ({ coords }) => {
-        const next = { lat: coords.latitude, lng: coords.longitude, accuracy: coords.accuracy }
-        setPosition(next)
-        setStatus('idle')
-        onLocated?.(next)
-        map.flyTo([next.lat, next.lng], Math.max(map.getZoom(), 17), { duration: 0.8 })
-      },
-      (err) => {
-        setStatus('error')
-        setMessage(
-          err.code === err.PERMISSION_DENIED
-            ? 'Location is blocked. Allow it in your browser’s address bar, then try again.'
-            : err.code === err.TIMEOUT
-              ? 'Finding you took too long. Try again.'
-              : "Couldn't work out where you are.",
-        )
-      },
-      { enableHighAccuracy: true, timeout: 10000, maximumAge: 30000 },
-    )
-  }, [map, onLocated])
-
+export function LocateButton({
+  position,
+  status,
+  message,
+  onLocate,
+}: {
+  position: GeoFix | null
+  status: GeoStatus
+  message: string | null
+  onLocate: () => void
+}) {
   return (
     <>
       {/* Sits above the map panes; Leaflet's own controls use z-[1000] */}
@@ -65,7 +36,7 @@ export function LocateButton({ onLocated }: { onLocated?: (at: Position) => void
         <div className="leaflet-control pointer-events-auto">
           <button
             type="button"
-            onClick={locate}
+            onClick={onLocate}
             disabled={status === 'locating'}
             aria-label="Show my location"
             title={message ?? 'Show my location'}
