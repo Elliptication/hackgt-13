@@ -1,0 +1,158 @@
+@import "tailwindcss";
+
+/*
+ * Notion-style palette.
+ * Warm off-black text on white, soft warm-gray surfaces, hairline borders,
+ * and one blue accent. Every text/background pair here meets WCAG AA (4.5:1).
+ */
+:root {
+  --background: #ffffff;
+  --foreground: #37352f; /* Notion's default text */
+  --surface: #fbfaf8; /* soft section / sidebar background */
+  --hover: #f3f2ef; /* row & button hover */
+  --border: #efeeeb;
+  --muted: #73726e; /* secondary text (4.8:1 on white) */
+  --subtle: #a5a4a0; /* icons / decorative only, not for body text */
+
+  --primary: #0b6bcb; /* 5.3:1 with white text */
+  --primary-hover: #0a5eb3;
+  --primary-foreground: #ffffff;
+  --primary-soft: #eaf3fc; /* soft blue fill for friendly accents */
+  --ring: #2383e2;
+
+  /* Notion tag colors, used for map feature categories */
+  --tag-blue: #2383e2;
+  --tag-blue-bg: #e7f3f8;
+  --tag-green: #448361;
+  --tag-green-bg: #edf3ec;
+  --tag-orange: #d9730d;
+  --tag-orange-bg: #fbecdd;
+  --tag-purple: #9065b0;
+  --tag-purple-bg: #f4f0f7;
+  --tag-red: #d44c47;
+  --tag-red-bg: #fdebec;
+  --tag-yellow: #cb912f;
+  --tag-yellow-bg: #fbf3db;
+}
+
+/* @media (prefers-color-scheme: dark) {
+  :root {
+    --background: #191919;
+    --foreground: #d4d4d4;
+    --surface: #202020;
+    --hover: #2c2c2c;
+    --border: #2f2f2f;
+    --muted: #9b9b9b;
+    --subtle: #6f6f6f;
+
+    --primary: #0b6bcb;
+    --primary-hover: #2383e2;
+    --primary-foreground: #ffffff;
+    --primary-soft: #1f2a34;
+    --ring: #529cca;
+
+    --tag-blue: #529cca;
+    --tag-blue-bg: #1f2a34;
+    --tag-green: #4dab9a;
+    --tag-green-bg: #1e2e2a;
+    --tag-orange: #d9854c;
+    --tag-orange-bg: #36281d;
+    --tag-purple: #9a6dd7;
+    --tag-purple-bg: #2b2335;
+    --tag-red: #df5452;
+    --tag-red-bg: #362322;
+    --tag-yellow: #ca9849;
+    --tag-yellow-bg: #35301f;
+  }
+} */
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-surface: var(--surface);
+  --color-hover: var(--hover);
+  --color-border: var(--border);
+  --color-muted: var(--muted);
+  --color-subtle: var(--subtle);
+  --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary-soft: var(--primary-soft);
+  --color-ring: var(--ring);
+
+  --font-sans: var(--font-inter), ui-sans-serif, -apple-system, "Segoe UI", Helvetica, Arial, sans-serif;
+  --font-display: var(--font-nunito), var(--font-inter), ui-sans-serif, sans-serif;
+}
+
+h1,
+h2,
+h3 {
+  font-family: var(--font-display);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Clear, consistent keyboard focus everywhere */
+:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+::selection {
+  background: rgb(35 131 226 / 0.28);
+}
+
+/* Leaflet popups in the Notion style */
+.leaflet-container {
+  font-family: var(--font-sans);
+}
+.leaflet-popup-content-wrapper,
+.leaflet-popup-tip {
+  background: var(--background);
+  color: var(--foreground);
+  border: 1px solid var(--border);
+  box-shadow: 0 4px 16px rgb(15 15 15 / 0.1);
+}
+.leaflet-popup-content-wrapper {
+  border-radius: 14px;
+}
+
+/*
+ * Settle the basemap into the palette above, without giving up sharpness — and
+ * without making it gloomy.
+ *
+ * Two earlier attempts got this wrong in opposite directions. Heavy
+ * desaturation left a dead grey sheet under a warm interface. Adding sepia to
+ * warm it back up only muddied everything to brown, which reads as tired and
+ * sad — the opposite of what a wayfinding tool should feel like.
+ *
+ * What works is lifting rather than draining: push the whites up toward
+ * --surface, keep enough saturation that water stays blue and parks stay green,
+ * and leave contrast alone. Blue water and green space are the two things on a
+ * basemap that read as open and trustworthy, and both survive here. Our pins
+ * still carry more saturation than anything under them, so they lead the eye
+ * without the map having to be dimmed into silence.
+ */
+.leaflet-tile-pane {
+  filter: saturate(0.62) brightness(1.09) contrast(1.02);
+}
+
+/*
+ * No dark variant on purpose. app/layout.tsx declares `colorScheme: 'light'`,
+ * so the interface stays light whatever the OS is set to. A dark basemap under
+ * a light sidebar was the result of adding one here — the map and the panel
+ * have to agree.
+ */
+
+/* We draw our own clear button; the native one would sit right beside it. */
+input[type='search']::-webkit-search-cancel-button,
+input[type='search']::-webkit-search-decoration {
+  -webkit-appearance: none;
+  appearance: none;
+}

@@ -149,11 +149,19 @@ activemq-data/
 
 # Environments
 *.env
+.wrangler/
+node_modules/
+.dev.vars
 .env
 .envrc
 .venv
-env/
-venv/
+.env/
+.venv/
+.venv-workers/
+__pycache__/
+*.py[cod]
+.env
+.env.*
 ENV/
 env.bak/
 venv.bak/

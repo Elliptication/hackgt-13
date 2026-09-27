@@ -1,37 +1,31 @@
 from fastapi import APIRouter, Request, HTTPException
 from fastapi.responses import RedirectResponse, JSONResponse
-import requests
+import httpx
 import os
-import re
-from dotenv import load_dotenv
+from workers import env
 import jwt
 import datetime
 import secrets
 import urllib.parse
-from urllib.parse import urlparse
-import logging
+from users import add_user, contains_user
 
-
-load_dotenv()
 
 router = APIRouter(prefix='/auth', tags=['auth'])
 
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
 
 # Google OAuth credentials
-CLIENT_ID = os.getenv('GOOGLE_CLIENT_ID')
-CLIENT_SECRET = os.getenv('GOOGLE_CLIENT_SECRET')
-JWT_SECRET = os.getenv('JWT_SECRET', 'your_jwt_secret')
+CLIENT_ID = env.GOOGLE_CLIENT_ID
+CLIENT_SECRET = env.GOOGLE_CLIENT_SECRET
+JWT_SECRET = env.JWT_SECRET
 
-returnUrl = ""
+returnUrl = "https://api.accessway.tech"
 
-REDIRECT_URI = os.getenv('GOOGLE_REDIRECT_URI', returnUrl + '/callback')
-FRONTEND_URL = returnUrl
+REDIRECT_URI = getattr(env, 'GOOGLE_REDIRECT_URI', returnUrl + '/auth/callback')
+FRONTEND_URL = "https://www.accessway.tech" 
 
 AUTH_URL = 'https://accounts.google.com/o/oauth2/v2/auth'
 TOKEN_URL = 'https://oauth2.googleapis.com/token'
-USERINFO_URL = 'https://www.googleapis.com/oauth2/v2/userinfo'
+USERINFO_URL = 'https://openidconnect.googleapis.com/v1/userinfo'
 
 
 
@@ -44,23 +38,23 @@ def home():
 # This route redirects the user to the Google OAuth login page
 @router.get("/login")
 def login():
+    state = secrets.token_urlsafe(32)
     params = {
         'client_id': CLIENT_ID,
         'redirect_uri': REDIRECT_URI,
         'response_type': 'code',
         'scope': 'openid email profile',
-        'state': secrets.token_urlsafe(32),
+        'state': state,
     }
     auth_url = f"{AUTH_URL}?{urllib.parse.urlencode(params)}"
     response = RedirectResponse(auth_url)
-    response.set_cookie(key='oauth_state', value=state, httponly=True, secure=True, samesite='lax', domain=urlparse(FRONTEND_URL).netloc)
-    return RedirectResponse(auth_url)
+    response.set_cookie(key='oauth_state', value=state, httponly=True, secure=True, samesite='lax')
+    return response
 
 
 
 @router.get("/callback")
-def callback(request: Request):
-
+async def callback(request: Request):
     expected_state = request.cookies.get('oauth_state')
     actual_state = request.query_params.get('state')
     if not expected_state or expected_state != actual_state:
@@ -71,7 +65,7 @@ def callback(request: Request):
     if not code:
         raise HTTPException(status_code=400, detail="Error: No code provided")
 
-    # Get the access token from GitHub
+    # Get the access token from Google
     token_data = {
         'client_id': CLIENT_ID,
         'client_secret': CLIENT_SECRET,
@@ -79,19 +73,25 @@ def callback(request: Request):
         'grant_type': 'authorization_code',
         'redirect_uri': REDIRECT_URI,
     }
-    token_response = requests.post(TOKEN_URL, data=token_data)
-    token_response.raise_for_status()
-    token_json = token_response.json()
-    access_token = token_json.get('access_token')
 
-    if not access_token:
-        raise HTTPException(status_code=400, detail="Error: No access token received")
 
-    user_info_response = requests.get(USERINFO_URL, headers={'Authorization': f'Bearer {access_token}'})
-    user_info = user_info_response.json()
+    async with httpx.AsyncClient() as client:
+        token_response = await client.post(TOKEN_URL, data=token_data)
+        token_response.raise_for_status()
+        token_json = token_response.json()
+        access_token = token_json.get('access_token')
+
+        if not access_token:
+            raise HTTPException(status_code=400, detail="Error: No access token received")
+
+        user_info_response = await client.get(USERINFO_URL, headers={'Authorization': f'Bearer {access_token}'})
+        user_info = user_info_response.json()
+    
     user_id = user_info.get('sub')
     email = user_info.get('email')
     name = user_info.get('name')
+    if not isinstance(user_id, str):
+        raise HTTPException(status_code=502, detail="Google user info did not include a valid subject")
 
     # Generate JWT
     payload = {
@@ -103,22 +103,57 @@ def callback(request: Request):
     token = jwt.encode(payload, JWT_SECRET, algorithm='HS256')
 
     # Set JWT in cookie
-    response = RedirectResponse(url=FRONTEND_URL) #https://letssign.xyz
-    response.set_cookie(key='jwt', value=token, httponly=True, secure=True, samesite='lax', domain=urlparse(FRONTEND_URL).netloc)
-    response.set_cookie(key='user_id', value=str(user_id), httponly=True, secure=True, samesite='lax', domain=urlparse(FRONTEND_URL).netloc)
-    response.set_cookie(key='username', value=str(name), httponly=True, secure=True, samesite='lax', domain=urlparse(FRONTEND_URL).netloc)
+    response = RedirectResponse(url=FRONTEND_URL)
+    response.set_cookie(key='jwt', value=token, httponly=True, secure=True, samesite='lax')
+    response.set_cookie(key='user_id', value=str(user_id), httponly=True, secure=True, samesite='lax')
+    response.set_cookie(key='username', value=str(name), httponly=True, secure=True, samesite='lax')
+
+    if (not contains_user(user_id)):
+        add_user(user_id, name)
+
+
     return response
 
-# A utility for debugging, specifically to check the contents and validility of the JWT
-@router.get("/verify-token")
-def verify_token(request: Request):
+
+@router.get("/profile")
+def get_profile(request: Request):
+    user_id = request.cookies.get("user_id")
+    username = request.cookies.get("username")
+    verify_token(request)
+    return [user_id, username]
+
+
+@router.get("/me")
+def get_current_user(request: Request):
+    payload = decode_token(request)
+    return {
+        "id": payload.get("sub"),
+        "name": payload.get("name"),
+        "email": payload.get("email"),
+    }
+
+
+@router.post("/logout")
+def logout():
+    response = JSONResponse({"message": "Logged out"})
+    for cookie_name in ("jwt", "user_id", "username"):
+        response.delete_cookie(key=cookie_name, path="/")
+    return response
+
+
+def decode_token(request: Request):
     token = request.cookies.get('jwt')
     if not token:
         raise HTTPException(status_code=401, detail="No token found")
     try:
-        decoded = jwt.decode(token, JWT_SECRET, algorithms=['HS256'])
-        return JSONResponse(content=decoded)
+        return jwt.decode(token, JWT_SECRET, algorithms=['HS256'])
     except jwt.ExpiredSignatureError:
         raise HTTPException(status_code=401, detail="Token has expired")
     except jwt.InvalidTokenError:
         raise HTTPException(status_code=401, detail="Invalid token")
+
+
+# A utility for debugging, specifically to check the contents and validility of the JWT
+@router.get("/verify-token")
+def verify_token(request: Request):
+    return JSONResponse(content=decode_token(request))

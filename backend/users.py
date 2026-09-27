@@ -1,7 +1,9 @@
-from db import supabase
+from db import get_supabase
+
 
 
 def add_user(user_id : str, username : str):
+    supabase = get_supabase()
     try:
         response = (
             supabase.table('users_goauth')
@@ -17,6 +19,7 @@ def add_user(user_id : str, username : str):
 
 
 def contains_user(user_id : str):
+    supabase = get_supabase()
     response = (
         supabase.table('users_goauth')
         .select('user_id')

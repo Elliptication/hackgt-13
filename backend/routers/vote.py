@@ -1,11 +1,14 @@
-from fastapi import APIRouter, HTTPException, status
-from db import supabase
-from features import update_verification_status
+from fastapi import APIRouter, HTTPException, status, Depends
+from db import get_supabase
+from routers.features import update_verification_status
+from routers.auth import get_current_user
 
 router = APIRouter(prefix='/vote', tags=['features'])
 
 @router.post('/')
-async def vote(contribution_id : str, user_id : str, upvote : bool):
+async def vote(contribution_id: str, upvote: bool, current_user: dict = Depends(get_current_user)):
+    supabase = get_supabase()
+    user_id = current_user["id"]
     response = (
         supabase.table('votes')
         .select('contribution_id', 'user_id', 'upvote')

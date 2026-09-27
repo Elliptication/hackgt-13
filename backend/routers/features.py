@@ -1,14 +1,18 @@
 import fastapi
 from fastapi import APIRouter
-from db import supabase
+from db import get_supabase
 from utils import geo_radius_to_box
 
 
 router = APIRouter(prefix='/features', tags=['features'])
 
 
+
+
 @router.get('')
 async def features_by_location(lat : float, long : float, radius : float):
+    supabase = get_supabase()
+    
     points = geo_radius_to_box(lat, long, radius)
     response = (
         supabase.rpc(
@@ -42,6 +46,8 @@ async def features_by_location(lat : float, long : float, radius : float):
 
 
 def update_verification_status(contribution_id : str):
+    supabase = get_supabase()
+
     response = (
         supabase.table('Features')
         .select('net_votes', 'total_votes', 'verified')
