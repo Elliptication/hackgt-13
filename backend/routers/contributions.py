@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException, status
 
-from db import supabase
+from db import get_supabase
 import hashlib
 from random import randbytes
 
@@ -11,9 +11,11 @@ router = APIRouter(prefix='/contributions', tags=['features'])
 
 SECRET = env.UPLOAD_SECRET
 
+
 # needs auth!!
 @router.get('/init')
 async def init_upload(lat : float, lon : float, type : str, file_type : str):
+    supabase = get_supabase()
     user_id = 'heyyo' # NEEDS AUTH!!
     name = hashlib.md5((str(lat) + str(lon) + str(type) + user_id + datetime.now().isoformat()).encode('utf-8')).hexdigest() + file_type
     secret = hashlib.md5((str(lat) + str(lon) + str(type) + user_id + datetime.now().date().isoformat() + SECRET).encode('utf-8')).hexdigest()
@@ -27,6 +29,7 @@ async def init_upload(lat : float, lon : float, type : str, file_type : str):
 
 @router.get('/by_feature/{feature_id}')
 async def get_contribution_id(feature_id: int):
+    supabase = get_supabase()
     response = (
         supabase.table('Features')
         .select('contribution_id')
@@ -45,6 +48,7 @@ async def get_contribution_id(feature_id: int):
 # needs auth!!
 @router.post('/')
 async def add_contribution(lat: float, lon: float, type : str, path: str, secret : str):
+    supabase = get_supabase()
     # check secret
     user_id = 'heyyo' # needs auth!!!
     secret_expected = hashlib.md5((str(lat) + str(lon) + str(type) + user_id + datetime.now().date().isoformat() + SECRET).encode('utf-8')).hexdigest()
