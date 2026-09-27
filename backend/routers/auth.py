@@ -127,4 +127,4 @@ def verify_token(request: Request):
     except jwt.ExpiredSignatureError:
         raise HTTPException(status_code=401, detail="Token has expired")
     except jwt.InvalidTokenError:
-        raise HTTPException(status_code=401, detail="Invalid token") 
+        raise HTTPException(status_code=401, detail="Invalid token")
