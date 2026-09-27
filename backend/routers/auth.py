@@ -110,7 +110,6 @@ async def callback(request: Request):
 
     if (not contains_user(user_id)):
         add_user(user_id, name)
-        raise Exception('User not found in database. Adding user now.')
 
 
     return response
