@@ -4,7 +4,7 @@ from dotenv import load_dotenv
 load_dotenv()
 import os
 
-SUPABASE_URL = os.environ.get('SUPABASE_URL')
-SUPABASE_KEY = os.environ.get('SUPABASE_KEY')
+SUPABASE_URL = env.SUPABASE_URL
+SUPABASE_KEY = env.SUPABASE_KEY
 
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
