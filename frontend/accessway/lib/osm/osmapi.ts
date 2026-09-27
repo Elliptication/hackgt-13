@@ -17,13 +17,20 @@ import type { OsmElement } from './types'
  * by an HTML error block.
  *
  * The tradeoff here is a hard cap of 50,000 nodes per request, so the bbox has
- * to stay small — see MAX_SPAN and the shrink-and-retry below.
+ * to stay small — see MAX_SPAN. A cell that's still too dense (central Sydney,
+ * London, Manhattan) is split into quarters and fetched piece by piece.
  */
 
 const ENDPOINT = 'https://api.openstreetmap.org/api/0.6/map.json'
 
 /** Widest area that reliably stays under the node cap. */
 const MAX_SPAN = 0.024
+
+/**
+ * How many times a too-dense cell may be split in four. Two levels is up to 16
+ * requests for one cell — slow, but it covers the densest city centres.
+ */
+const MAX_SPLITS = 2
 
 /** Raw shape from the API: ways carry node ids, not coordinates. */
 type RawElement = OsmElement & { nodes?: number[] }
@@ -76,6 +83,72 @@ function resolveGeometry(elements: RawElement[]): OsmElement[] {
   })
 }
 
+function quarters(b: Bbox): Bbox[] {
+  const midLat = (b.north + b.south) / 2
+  const midLng = (b.east + b.west) / 2
+  return [
+    { south: midLat, north: b.north, west: b.west, east: midLng },
+    { south: midLat, north: b.north, west: midLng, east: b.east },
+    { south: b.south, north: midLat, west: b.west, east: midLng },
+    { south: b.south, north: midLat, west: midLng, east: b.east },
+  ]
+}
+
+/**
+ * One box from the API. If it holds more than the node cap, it's split into
+ * quarters and each is fetched in turn — one after another rather than all at
+ * once, to stay within OpenStreetMap's usage policy.
+ *
+ * This used to shrink the box toward its centre and retry, which loaded the
+ * middle of a dense area and silently dropped the rest — or, in a city centre,
+ * failed outright after three shrinks.
+ */
+async function fetchBox(box: Bbox, splits = 0): Promise<RawElement[]> {
+  const query = `${box.west},${box.south},${box.east},${box.north}`
+  let lastError: unknown = null
+
+  // One retry for a flaky connection; a too-dense or rate-limited answer isn't retried.
+  for (let attempt = 0; attempt < 2; attempt++) {
+    let res: Response
+    try {
+      res = await fetch(`${ENDPOINT}?bbox=${query}`, {
+        headers: { 'User-Agent': 'AccessWay-HackGT/1.0 (student project)' },
+        // Next's data cache rejects anything over 2MB and these are ~11MB, so
+        // it cached nothing and warned on every request. readCache does the work.
+        cache: 'no-store',
+        signal: AbortSignal.timeout(30_000),
+      })
+    } catch (error) {
+      lastError = error
+      continue
+    }
+
+    if (res.status === 400) {
+      // "You requested too many nodes".
+      if (splits >= MAX_SPLITS) throw new OsmApiError(400, 'That area is too dense to load at once.')
+      const parts: RawElement[] = []
+      for (const part of quarters(box)) parts.push(...(await fetchBox(part, splits + 1)))
+      return parts
+    }
+
+    if (res.status === 429 || res.status === 509) {
+      throw new OsmApiError(res.status, 'OpenStreetMap is limiting how much we can download. Wait a minute, then move the map.')
+    }
+
+    if (!res.ok) {
+      lastError = new OsmApiError(res.status, 'OpenStreetMap is unavailable right now.')
+      continue
+    }
+
+    const body = (await res.json()) as { elements?: RawElement[] }
+    return body.elements ?? []
+  }
+
+  throw lastError instanceof OsmApiError
+    ? lastError
+    : new OsmApiError(502, 'Could not reach OpenStreetMap. Try again in a moment.')
+}
+
 /** Everything OpenStreetMap holds for an area, cached, with stale fallback. */
 export async function fetchArea(bbox: Bbox): Promise<OsmElement[]> {
   const area = clamp(bbox)
@@ -84,46 +157,16 @@ export async function fetchArea(bbox: Bbox): Promise<OsmElement[]> {
   const cached = readCache(key)
   if (cached && !cached.stale) return cached.elements
 
-  let span = MAX_SPAN
-  let lastError: unknown = null
-
-  for (let attempt = 0; attempt < 3; attempt++) {
-    const box = clamp(bbox, span)
-    const query = `${box.west},${box.south},${box.east},${box.north}`
-
-    try {
-      const res = await fetch(`${ENDPOINT}?bbox=${query}`, {
-        headers: { 'User-Agent': 'AccessWay-HackGT/1.0 (student project)' },
-        // Next's data cache rejects anything over 2MB and these are ~11MB, so
-        // it cached nothing and warned on every request. readCache does the work.
-        cache: 'no-store',
-        signal: AbortSignal.timeout(30_000),
-      })
-
-      if (res.status === 400) {
-        // "You requested too many nodes" — shrink and try again.
-        span *= 0.55
-        lastError = new OsmApiError(400, 'That area is too dense to load at once.')
-        continue
-      }
-
-      if (!res.ok) {
-        lastError = new OsmApiError(res.status, 'OpenStreetMap is unavailable right now.')
-        continue
-      }
-
-      const body = (await res.json()) as { elements?: RawElement[] }
-      const elements = resolveGeometry(body.elements ?? [])
-      writeCache(key, elements)
-      return elements
-    } catch (error) {
-      lastError = error
-    }
+  try {
+    const raw = await fetchBox(area)
+    // Pieces of a split box overlap at their edges (a road crossing the line
+    // comes back from both sides), so keep one copy of each element.
+    const unique = [...new Map(raw.map((el) => [`${el.type}/${el.id}`, el])).values()]
+    const elements = resolveGeometry(unique)
+    writeCache(key, elements)
+    return elements
+  } catch (error) {
+    if (cached) return cached.elements
+    throw error
   }
-
-  if (cached) return cached.elements
-
-  throw lastError instanceof OsmApiError
-    ? lastError
-    : new OsmApiError(502, 'Could not reach OpenStreetMap. Try again in a moment.')
 }
