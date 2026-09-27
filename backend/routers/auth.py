@@ -7,7 +7,7 @@ import jwt
 import datetime
 import secrets
 import urllib.parse
-from users import add_user
+from users import add_user, contains_user
 
 
 router = APIRouter(prefix='/auth', tags=['auth'])
@@ -107,6 +107,12 @@ async def callback(request: Request):
     response.set_cookie(key='jwt', value=token, httponly=True, secure=True, samesite='lax')
     response.set_cookie(key='user_id', value=str(user_id), httponly=True, secure=True, samesite='lax')
     response.set_cookie(key='username', value=str(name), httponly=True, secure=True, samesite='lax')
+
+    if (not contains_user(user_id)):
+        add_user(user_id, name)
+        raise Exception('User not found in database. Adding user now.')
+
+
     return response
 
 
