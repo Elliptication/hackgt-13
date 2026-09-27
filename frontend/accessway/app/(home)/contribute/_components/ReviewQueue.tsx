@@ -14,7 +14,7 @@ import type { Vote } from '@/types/contribute'
 import { FEATURE_TYPES } from '@/data/FeatureTypes'
 
 export function ReviewQueue() {
-  const { contributions, userId, myVotes, vote } = useContributions()
+  const { contributions, userId, myVotes, vote, syncError } = useContributions()
   const requireAuth = useRequireAuth()
   const [skipped, setSkipped] = useState<string[]>([])
   const [lastVote, setLastVote] = useState<Vote | null>(null)
@@ -118,6 +118,13 @@ export function ReviewQueue() {
             <p className="mt-4 text-center text-xs text-muted">
               {current.confirms} of {VOTES_TO_APPROVE} confirmations so far
             </p>
+
+            {/* A vote counted here that the API refused. Said once, not per photo. */}
+            {syncError && (
+              <p role="status" className="mt-3 rounded-2xl bg-[var(--tag-yellow-bg)] px-3 py-2 text-center text-xs">
+                {syncError}
+              </p>
+            )}
           </div>
         </article>
       ) : (

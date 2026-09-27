@@ -6,13 +6,12 @@ from fastapi import APIRouter as base_router
 from fastapi.middleware.cors import CORSMiddleware
 from routers import features, contributions, vote
 
-
-
 app = fastapi.FastAPI()
 
-#fix once we know what origins we want
 origins = [
-    "*",
+    "https://accessway.tech",
+    "https://www.accessway.tech",
+    "http://localhost:3000",
 ]
 
 app.add_middleware(
@@ -34,8 +33,3 @@ def root():
 app.include_router(features.router)
 app.include_router(contributions.router)
 app.include_router(vote.router)
-
-# if __name__ == '__main__':
-#     import uvicorn
-#     uvicorn.run(app, host='0.0.0.0', port=6767)
-

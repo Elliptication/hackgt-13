@@ -1,6 +1,7 @@
 'use client'
 
-import { CheckCircle2, Coins, ImagePlus } from 'lucide-react'
+import { CheckCircle2, CloudOff, Coins, ImagePlus, Loader2, RefreshCw } from 'lucide-react'
+import { useState } from 'react'
 
 import { LoginButton } from './LoginButton'
 import { ContributionPhoto } from './ContributionPhoto'
@@ -64,7 +65,7 @@ function SubmissionList({ contributions: mine }: { contributions: Contribution[]
               <p className="truncate font-medium">{c.name}</p>
               <p className="text-xs text-muted">{FEATURE_TYPES[c.type].label}</p>
               <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-                <StatusBadge status={c.status} />
+                {c.unsent ? <UnsentBadge /> : <StatusBadge status={c.status} />}
                 {c.status === 'approved' && (
                   <span className="inline-flex items-center gap-1 rounded-full bg-[var(--tag-yellow-bg)] px-2.5 py-0.5 text-xs font-medium">
                     <Coins className="size-3.5 text-[var(--tag-yellow)]" aria-hidden="true" />+{REWARD_CENTS}¢
@@ -74,7 +75,9 @@ function SubmissionList({ contributions: mine }: { contributions: Contribution[]
             </div>
           </div>
 
-          {c.status === 'pending' && (
+          {c.unsent && <RetryRow contribution={c} />}
+
+          {c.status === 'pending' && !c.unsent && (
             <div className="border-t border-border/70 px-3 py-2.5">
               <div className="flex items-center justify-between text-xs text-muted">
                 <span>
@@ -119,5 +122,48 @@ function SubmissionList({ contributions: mine }: { contributions: Contribution[]
         </li>
       ))}
     </ul>
+  )
+}
+
+function UnsentBadge() {
+  return (
+    <span className="inline-flex items-center gap-1 rounded-full bg-[var(--tag-yellow-bg)] px-2.5 py-0.5 text-xs font-medium">
+      <CloudOff className="size-3.5 text-[var(--tag-yellow)]" aria-hidden="true" />
+      On this device only
+    </span>
+  )
+}
+
+/**
+ * A photo the API never received.
+ *
+ * The file is still here, so this is a retry rather than an apology — losing
+ * someone's photo because a worker was restarting is the one outcome worth
+ * writing extra code to avoid.
+ */
+function RetryRow({ contribution }: { contribution: Contribution }) {
+  const { retryUpload, sending } = useContributions()
+  const [error, setError] = useState<string | null>(null)
+  const busy = sending === contribution.id
+
+  return (
+    <div className="border-t border-border/70 px-3 py-2.5">
+      <p className="text-xs text-muted">
+        {error ?? 'This one didn’t reach the server, so nobody can review it yet.'}
+      </p>
+      <button
+        type="button"
+        disabled={busy || !contribution.file}
+        onClick={async () => setError(await retryUpload(contribution.id))}
+        className="mt-2 inline-flex h-8 items-center gap-1.5 rounded-full bg-primary-soft px-3 text-xs font-medium hover:brightness-[0.97] disabled:opacity-60"
+      >
+        {busy ? (
+          <Loader2 className="size-3.5 animate-spin" aria-hidden="true" />
+        ) : (
+          <RefreshCw className="size-3.5" aria-hidden="true" />
+        )}
+        {busy ? 'Sending…' : 'Try sending again'}
+      </button>
+    </div>
   )
 }

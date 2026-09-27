@@ -7,7 +7,7 @@
 	
   	"vars": {
     	"GOOGLE_CLIENT_ID": "638406818272-qkfsvgr6hrnlhiqlo89pbnf5ndgvhqjh.apps.googleusercontent.com",
-	    "GOOGLE_REDIRECT_URI": "https://api.accessway.tech/callback",
+	    "GOOGLE_REDIRECT_URI": "https://api.accessway.tech/auth/callback",
     	"SUPABASE_URL": "https://ztayzyuyfmurhtkwiohq.supabase.co"
 	  },
 
