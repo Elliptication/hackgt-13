@@ -4,14 +4,12 @@ from db import supabase
 import hashlib
 from random import randbytes
 
-from dotenv import load_dotenv
-load_dotenv()
-import os
+from workers import env
 from datetime import datetime
 
 router = APIRouter(prefix='/contributions', tags=['features'])
 
-SECRET = os.getenv('UPLOAD_SECRET')
+SECRET = env.UPLOAD_SECRET
 
 # needs auth!!
 @router.get('/init')
