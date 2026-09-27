@@ -6,6 +6,16 @@ import type { Route, RouteRequest, RouteStep } from '@/types/routes'
 import { fail } from '../_shared'
 
 /**
+ * A cold cell means an ~11 MB fetch from OpenStreetMap, which is seconds rather
+ * than milliseconds. Vercel's default function timeout is short enough to cut
+ * that off and return a gateway error instead, so the ceiling is raised here.
+ *
+ * Warm cells answer from cache in milliseconds and never approach this.
+ */
+export const maxDuration = 60
+
+
+/**
  * POST /api/v1/routes — wheelchair routing via Valhalla.
  *
  * Not OSRM's public demo server: that host only has the car graph loaded, so

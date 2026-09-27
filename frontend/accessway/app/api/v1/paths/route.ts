@@ -8,6 +8,16 @@ import type { KerbPoint, PathSegment } from '@/types/paths'
 import { areaFor, fail, responseKey } from '../_shared'
 
 /**
+ * A cold cell means an ~11 MB fetch from OpenStreetMap, which is seconds rather
+ * than milliseconds. Vercel's default function timeout is short enough to cut
+ * that off and return a gateway error instead, so the ceiling is raised here.
+ *
+ * Warm cells answer from cache in milliseconds and never approach this.
+ */
+export const maxDuration = 60
+
+
+/**
  * GET /api/v1/paths?tile= — the pedestrian network plus its kerbs.
  *
  * They travel together because they are only meaningful together: a perfect
