@@ -3,6 +3,7 @@ from fastapi import APIRouter
 from db import supabase
 from utils import geo_radius_to_box
 
+
 router = APIRouter(prefix='/features', tags=['features'])
 
 
