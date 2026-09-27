@@ -149,6 +149,10 @@ activemq-data/
 
 # Environments
 *.env
+.wrangler/
+python_modules/
+node_modules/
+.dev.vars
 .env
 .envrc
 .venv
