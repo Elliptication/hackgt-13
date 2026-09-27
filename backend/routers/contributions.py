@@ -8,6 +8,7 @@ from workers import env
 from datetime import datetime
 
 from supabase import Client
+from utils import process_image
 
 # from openai_client import get_openai_client
 
@@ -124,6 +125,25 @@ async def get_contributions():
     )
 
     return response.data
+
+
+@router.get('/classify/{contribution_id}')
+async def classify_contribution(contribution_id):
+    supabase = get_supabase()
+
+    contrib_response = (
+        supabase.table('contributions')
+        .select('id','image_path')
+        .eq('id', contribution_id)
+        .execute()
+    )
+
+    image_path = contrib_response.data[0]['image_path']
+
+    f_type = process_image(image_path)
+
+    return f_type
+
 
 
     
