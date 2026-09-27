@@ -122,3 +122,37 @@ body {
 .leaflet-popup-content-wrapper {
   border-radius: 14px;
 }
+
+/*
+ * Settle the basemap into the palette above, without giving up sharpness — and
+ * without making it gloomy.
+ *
+ * Two earlier attempts got this wrong in opposite directions. Heavy
+ * desaturation left a dead grey sheet under a warm interface. Adding sepia to
+ * warm it back up only muddied everything to brown, which reads as tired and
+ * sad — the opposite of what a wayfinding tool should feel like.
+ *
+ * What works is lifting rather than draining: push the whites up toward
+ * --surface, keep enough saturation that water stays blue and parks stay green,
+ * and leave contrast alone. Blue water and green space are the two things on a
+ * basemap that read as open and trustworthy, and both survive here. Our pins
+ * still carry more saturation than anything under them, so they lead the eye
+ * without the map having to be dimmed into silence.
+ */
+.leaflet-tile-pane {
+  filter: saturate(0.62) brightness(1.09) contrast(1.02);
+}
+
+/*
+ * No dark variant on purpose. app/layout.tsx declares `colorScheme: 'light'`,
+ * so the interface stays light whatever the OS is set to. A dark basemap under
+ * a light sidebar was the result of adding one here — the map and the panel
+ * have to agree.
+ */
+
+/* We draw our own clear button; the native one would sit right beside it. */
+input[type='search']::-webkit-search-cancel-button,
+input[type='search']::-webkit-search-decoration {
+  -webkit-appearance: none;
+  appearance: none;
+}
