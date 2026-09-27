@@ -7,6 +7,7 @@ import jwt
 import datetime
 import secrets
 import urllib.parse
+from users import add_user
 
 
 router = APIRouter(prefix='/auth', tags=['auth'])
