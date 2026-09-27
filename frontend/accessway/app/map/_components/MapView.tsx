@@ -14,6 +14,7 @@ import { FEATURE_TYPES } from '@/data/FeatureTypes'
 import { useAuth } from '@/hooks/useAuth'
 import { useContributions } from '@/hooks/useContributions'
 import { useCommunityFeatures } from '@/hooks/useCommunityFeatures'
+import { useCommunityPhotos } from '@/hooks/useCommunityPhotos'
 import { useFeatures } from '@/hooks/useFeatures'
 import { useGeolocation } from '@/hooks/useGeolocation'
 import { useWalkable } from '@/hooks/useWalkable'
@@ -69,6 +70,9 @@ export function MapView({ notice = null }: MapViewProps) {
   // photo still in review is somebody's claim, not yet a place to rely on.
   const { features: community, pending: reported, unavailable: communityDown } = useCommunityFeatures(bbox, zoom)
   const { contributions } = useContributions()
+  // The photos behind those features, from a second endpoint. `/features` never
+  // returns `image_path`, so this join is the only way a pin gets its picture.
+  const { byFeatureId: communityPhotos } = useCommunityPhotos()
 
   // Confirmed community photos sit alongside surveyed data on the same map.
   // OpenStreetMap has a wheelchair tag on under 2% of buildings around here, so
@@ -575,6 +579,7 @@ export function MapView({ notice = null }: MapViewProps) {
           pinMode={pinningFor !== null}
           onPinDrop={dropPin}
           contributions={contributions}
+          photosByFeature={photosByFeature}
           markers={droppedMarkers}
         />
       </div>

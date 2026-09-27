@@ -2,7 +2,6 @@
 
 import { createContext, useCallback, useMemo, useReducer, useState } from 'react'
 
-import { SAMPLE_CONTRIBUTIONS } from '@/data/SampleContributions'
 import { useAuth } from '@/hooks/useAuth'
 import { accessway, contributePhoto, isBackendDown } from '@/lib/api/accessway'
 import { REWARD_CENTS } from '@/lib/constants'
@@ -165,7 +164,11 @@ export function ContributionsProvider({ children }: { children: React.ReactNode 
   const [sending, setSending] = useState<string | null>(null)
 
   const [state, dispatch] = useReducer(reducer, {
-    contributions: SAMPLE_CONTRIBUTIONS,
+    // Empty, not seeded: the review queue reads real rows from `/features` now
+    // (hooks/useReviewQueue.ts). What lives here is this session's own uploads,
+    // which is the one thing the API cannot tell us — the photo is an object URL
+    // that exists in this tab and nowhere else.
+    contributions: [],
     votesByUser: {},
     balances: {},
   })

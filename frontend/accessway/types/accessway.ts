@@ -8,7 +8,14 @@
  * Source of truth: backend/routers/ on the `backend` branch.
  */
 
-/** `GET /features?lat&long&radius` — a bare array, not a paginated envelope. */
+/**
+ * A feature as either features endpoint sends it.
+ *
+ * Two endpoints, two shapes, one type — because `GET /features` maps its rows
+ * (`long` → `lng`, `verified` → `str(verified)`) while `GET /features/{id}`
+ * returns `select('*')` untouched. The optional keys are the second spelling of
+ * a field the first one renames; `toCommunityFeature` reads whichever arrived.
+ */
 export type BackendFeature = {
   id: number | string
   /** Whatever string the contributor sent. Not constrained server-side. */
@@ -16,9 +23,25 @@ export type BackendFeature = {
   /** What the contributor called it. Older rows have none, or just the type. */
   name: string | null
   lat: number
-  lng: number
-  /** Python's `str(verified)`, so the literal text "True" or "False". */
-  status: string
+  /** `GET /features` only — the renamed longitude. */
+  lng?: number
+  /** `GET /features/{id}` only — the raw column, before renaming. */
+  long?: number
+  /** `GET /features` only. Python's `str(verified)`: the text "True" or "False". */
+  status?: string
+  /** `GET /features/{id}` only — the raw column, an actual boolean. */
+  verified?: boolean
+  /**
+   * `GET /features/{id}` only — PostGIS hex EWKB, e.g. `0101000020E6100000...`.
+   *
+   * The only place that endpoint carries a position: the `lat` and `long`
+   * columns are never populated by `POST /contributions/`, which writes this
+   * geometry instead. See lib/geo/wkb.ts.
+   */
+  location?: string | null
+  /** `GET /features/{id}` only. Null until a name is stored at upload. */
+  net_votes?: number | null
+  total_votes?: number | null
   contribution_id: string | number | null
   /** Yes votes minus no votes. Missing on older deploys, so optional. */
   net_votes?: number | null
@@ -36,4 +59,24 @@ export type UploadTicket = {
 /** `GET /contributions/by_feature/{id}` */
 export type ContributionRef = {
   contribution_id: string
+}
+
+/**
+ * `GET /contributions/` — every photo row, unfiltered.
+ *
+ * The one read that returns `image_path`, which is what makes the photo
+ * visible at all. It carries no coordinates, name, description or tally, so a
+ * row is only useful joined to `/features` on `feature_id`.
+ *
+ * Takes no parameters — no bbox, no limit — so this is the whole table.
+ */
+export type ContributionRow = {
+  id: number | string
+  created_at: string
+  /** Google `sub` of the uploader. Used to keep people off their own photos. */
+  user_id: string
+  /** The join key back to `GET /features`. */
+  feature_id: number | string
+  /** Storage path inside the `contribution_images` bucket, never a URL. */
+  image_path: string | null
 }
