@@ -49,6 +49,8 @@ export function MapView({ notice = null }: MapViewProps) {
   /** Feature types to show. Empty means all of them. */
   const [typeFilter, setTypeFilter] = useState<Set<FeatureType>>(() => new Set())
   const [filterOpen, setFilterOpen] = useState(false)
+  /** Community reports nobody has confirmed yet. Shown faint by default; some people would rather not see them. */
+  const [showUnconfirmed, setShowUnconfirmed] = useState(true)
   const filterId = useId()
   const [zoom, setZoom] = useState<number | null>(null)
   const [selectedId, setSelectedId] = useState<string | null>(null)
@@ -137,9 +139,15 @@ export function MapView({ notice = null }: MapViewProps) {
 
   // The type filter applies to the map and the sidebar alike.
   const shown = useMemo(
-    () => (typeFilter.size === 0 ? features : features.filter((f) => typeFilter.has(f.type))),
-    [features, typeFilter],
+    () =>
+      features.filter(
+        (f) => (typeFilter.size === 0 || typeFilter.has(f.type)) && (showUnconfirmed || !f.report),
+      ),
+    [features, typeFilter, showUnconfirmed],
   )
+  /** Types picked, plus one if unconfirmed reports are hidden: what the Filter badge counts. */
+  const activeFilters = typeFilter.size + (showUnconfirmed ? 0 : 1)
+  const unconfirmedCount = useMemo(() => features.filter((f) => f.report).length, [features])
 
   // The sidebar lists what's in view, not the first 60 things ever loaded —
   // otherwise after flying to another city it kept listing the old one.
@@ -441,14 +449,14 @@ export function MapView({ notice = null }: MapViewProps) {
                       aria-expanded={filterOpen}
                       aria-controls={filterId}
                       className={`inline-flex h-8 items-center gap-1.5 rounded-full px-3 text-sm font-medium transition-colors ${
-                        typeFilter.size > 0 ? 'bg-primary-soft text-primary' : 'text-muted hover:bg-hover hover:text-foreground'
+                        activeFilters > 0 ? 'bg-primary-soft text-primary' : 'text-muted hover:bg-hover hover:text-foreground'
                       }`}
                     >
                       <SlidersHorizontal className="size-4" aria-hidden="true" />
                       Filter
-                      {typeFilter.size > 0 && (
+                      {activeFilters > 0 && (
                         <span className="grid min-w-5 place-items-center rounded-full bg-primary px-1.5 text-xs text-primary-foreground">
-                          {typeFilter.size}
+                          {activeFilters}
                           <span className="sr-only"> selected</span>
                         </span>
                       )}
@@ -481,15 +489,41 @@ export function MapView({ notice = null }: MapViewProps) {
                           )
                         },
                       )}
-                      {typeFilter.size > 0 && (
+                      {activeFilters > 0 && (
                         <button
                           type="button"
-                          onClick={() => setTypeFilter(new Set())}
+                          onClick={() => {
+                            setTypeFilter(new Set())
+                            setShowUnconfirmed(true)
+                          }}
                           className="inline-flex h-8 items-center rounded-full px-3 text-sm font-medium text-primary hover:bg-primary-soft"
                         >
                           Show all
                         </button>
                       )}
+
+                      <label className="mt-1.5 flex w-full cursor-pointer items-center gap-3 rounded-xl px-2 py-1.5 text-sm select-none hover:bg-hover has-focus-visible:ring-2 has-focus-visible:ring-ring">
+                        <input
+                          type="checkbox"
+                          role="switch"
+                          className="sr-only"
+                          checked={showUnconfirmed}
+                          onChange={() => setShowUnconfirmed((on) => !on)}
+                        />
+                        <span className="min-w-0 flex-1">
+                          <span className="block font-medium">
+                            Show unconfirmed reports
+                            {unconfirmedCount > 0 && <span className="font-normal text-muted"> ({unconfirmedCount})</span>}
+                          </span>
+                          <span className="block text-xs text-muted">Added by someone, not yet checked by others. Drawn faint.</span>
+                        </span>
+                        <span
+                          aria-hidden="true"
+                          className={`relative h-5 w-9 shrink-0 rounded-full transition-colors ${showUnconfirmed ? 'bg-primary' : 'bg-border'}`}
+                        >
+                          <span className={`absolute top-0.5 size-4 rounded-full bg-white shadow transition-[left] ${showUnconfirmed ? 'left-[1.125rem]' : 'left-0.5'}`} />
+                        </span>
+                      </label>
                     </div>
                   )}
 
@@ -528,7 +562,7 @@ export function MapView({ notice = null }: MapViewProps) {
                   )}
                   {nearby.length === 0 && !loadingArea && !tooFarOut && (
                     <p className="px-3 py-4 text-sm text-muted">
-                      {typeFilter.size > 0
+                      {activeFilters > 0
                         ? 'None of those in this area. Try another filter, or move the map.'
                         : 'Nothing recorded in this area yet.'}
                     </p>
