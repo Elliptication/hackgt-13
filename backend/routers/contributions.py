@@ -17,7 +17,7 @@ router = APIRouter(prefix='/contributions', tags=['contributions'])
 SECRET = env.UPLOAD_SECRET
 SUPABASE_URL = env.SUPABASE_URL
 
-FEATURES = ["ramp", "elevator", "accessible_bathroom", "accessible_doors"]
+FEATURES = ["ramp", "elevator", "restroom", "accessible_entrance"]
 
 
 
@@ -128,15 +128,23 @@ async def get_contributions():
 
 
 @router.get('/classify/{contribution_id}')
-async def classify_contribution(contribution_id):
+async def classify_contribution(contribution_id, current_user: dict = Depends(get_current_user)):
     supabase = get_supabase()
 
+    user_id = current_user["id"]
     contrib_response = (
         supabase.table('contributions')
-        .select('id','image_path')
+        .select('id', 'user_id', 'image_path')
         .eq('id', contribution_id)
+        .eq('user_id', user_id)
         .execute()
     )
+
+    if len(contrib_response.data) == 0:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail='Contribution could not be found'
+        )
 
     image_path = contrib_response.data[0]['image_path']
 
