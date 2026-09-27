@@ -1,6 +1,7 @@
 import { ArrowRight, Camera, Coins, MapPinned, Search, Users } from 'lucide-react'
 
 import { Button } from '@/components/Button'
+import { REWARD_CENTS } from '@/lib/constants'
 
 /**
  * The page leads with who it is for, and what they get.
@@ -120,7 +121,8 @@ export function Hero() {
             <h2 className="text-2xl font-bold tracking-tight">One photo can help someone get there.</h2>
             <p className="mt-1 text-muted">
               See a ramp, elevator, accessible entrance, or barrier? Add it to AccessWay and help wheelchair
-              users move with more confidence.
+              users move with more confidence — and earn {REWARD_CENTS}¢ for every photo the community
+              confirms.
             </p>
           </div>
           <div className="flex flex-wrap justify-center gap-2">
