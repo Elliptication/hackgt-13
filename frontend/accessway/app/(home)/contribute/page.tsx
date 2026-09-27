@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 
+import { CommunityGallery } from './_components/CommunityGallery'
 import { Hero } from './_components/Hero'
 import { MySubmissions } from './_components/MySubmissions'
 import { ReviewQueue } from './_components/ReviewQueue'
@@ -39,6 +40,8 @@ export default async function ContributePage({
           <ReviewQueue />
         )}
       </div>
+
+      <CommunityGallery />
     </div>
   )
 }

@@ -14,6 +14,7 @@ import { FEATURE_TYPES } from '@/data/FeatureTypes'
 import { useAuth } from '@/hooks/useAuth'
 import { useContributions } from '@/hooks/useContributions'
 import { useCommunityFeatures } from '@/hooks/useCommunityFeatures'
+import { useCommunityPhotos } from '@/hooks/useCommunityPhotos'
 import { useFeatures } from '@/hooks/useFeatures'
 import { useGeolocation } from '@/hooks/useGeolocation'
 import { useWalkable } from '@/hooks/useWalkable'
@@ -21,6 +22,7 @@ import { usePlaceSearch } from '@/hooks/usePlaceSearch'
 import { useRoute } from '@/hooks/useRoute'
 import { APP_NAME } from '@/lib/constants'
 import { FEATURE_ICONS } from '@/lib/featureIcons'
+import { placed } from '@/lib/api/accessway'
 import { toFeature } from '@/lib/contribute'
 import type { FeatureType } from '@/types/features'
 import type { LatLng, Place } from '@/types/places'
@@ -69,6 +71,9 @@ export function MapView({ notice = null }: MapViewProps) {
   // photo still in review is somebody's claim, not yet a place to rely on.
   const { features: community, unavailable: communityDown } = useCommunityFeatures(bbox, zoom)
   const { contributions } = useContributions()
+  // The photos behind those features, from a second endpoint. `/features` never
+  // returns `image_path`, so this join is the only way a pin gets its picture.
+  const { byFeatureId: communityPhotos } = useCommunityPhotos()
 
   // Confirmed community photos sit alongside surveyed data on the same map.
   // OpenStreetMap has a wheelchair tag on under 2% of buildings around here, so
@@ -81,8 +86,18 @@ export function MapView({ notice = null }: MapViewProps) {
       .filter((c) => c.status === 'approved' && !(c.featureId && fromServer.has(c.featureId)))
       .map(toFeature)
 
-    return [...surveyed, ...community, ...mine]
+    // `placed` drops community features the API could not give coordinates for.
+    // They are real rows and they still show up in review — there is simply
+    // nowhere to draw them, and a pin at `undefined` lands in the Atlantic.
+    return [...surveyed, ...community.filter(placed), ...mine]
   }, [surveyed, community, contributions])
+  // `CommunityFeature.id` is prefixed (`community-12`) to keep it from
+  // colliding with an OSM id, so the photo map has to be re-keyed to match.
+  const photosByFeature = useMemo(() => {
+    if (communityPhotos.size === 0) return undefined
+    return new Map([...communityPhotos].map(([featureId, shots]) => [`community-${featureId}`, shots]))
+  }, [communityPhotos])
+
   const { paths, kerbs, loading: loadingWalkable } = useWalkable(showWalkable, bbox, zoom)
   const { results, loading: searching, error: searchError, offline: searchOffline } = usePlaceSearch(query, bbox, origin)
   const { route, destination, loading: routing, error: routeError, offline: routeOffline, findRoute, clear } = useRoute()
@@ -556,6 +571,7 @@ export function MapView({ notice = null }: MapViewProps) {
           pinMode={pinningFor !== null}
           onPinDrop={dropPin}
           contributions={contributions}
+          photosByFeature={photosByFeature}
           markers={droppedMarkers}
         />
       </div>

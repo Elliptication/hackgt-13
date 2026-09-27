@@ -1,6 +1,7 @@
 import { FEATURE_TYPES } from '@/data/FeatureTypes'
-import type { BackendFeature, ContributionRef, UploadTicket } from '@/types/accessway'
+import type { BackendFeature, ContributionRef, ContributionRow, UploadTicket } from '@/types/accessway'
 import type { AccessFeature, FeatureType } from '@/types/features'
+import { pointFromEwkb } from '@/lib/geo/wkb'
 
 /**
  * The AccessWay backend: community features, photo contributions, and votes.
@@ -20,10 +21,11 @@ import type { AccessFeature, FeatureType } from '@/types/features'
  * Endpoints (backend/routers/ on the `backend` branch):
  *
  *   GET  /features?lat&long&radius                   → BackendFeature[]
+ *   GET  /contributions/                             → ContributionRow[]
  *   GET  /contributions/init?lat&lon&type&file_type  → UploadTicket
- *   POST /contributions/?lat&lon&type&path&secret    → the created rows
+ *   POST /contributions/?lat&lon&type&path&name&secret → the created rows
  *   GET  /contributions/by_feature/{feature_id}      → { contribution_id }
- *   POST /vote/?contribution_id&user_id&upvote       → the vote row
+ *   POST /vote/?contribution_id&upvote               → the vote row
  */
 
 export const ACCESSWAY_API_URL = (
@@ -32,10 +34,20 @@ export const ACCESSWAY_API_URL = (
 
 /**
  * Where contribution photos end up. The API hands back a storage *path*, never
- * a URL, so the bucket has to be named here to turn one into the other. Unset,
- * uploads still work — the photo just cannot be read back from the server.
+ * a URL, so the bucket has to be named here to turn one into the other.
+ *
+ * Defaulted rather than required, the same way ACCESSWAY_API_URL is. This is the
+ * project's public storage host — the same value already committed in
+ * backend/wrangler.jsonc — and the bucket it points at is public, so there is
+ * nothing here that a reader of the deployed page could not already see. It is
+ * defaulted because leaving it unset silently costs every photo on the site, and
+ * a blank gallery is a poor way to find out an env var was missed.
+ *
+ * NEXT_PUBLIC_SUPABASE_URL still overrides it, for a different project.
  */
-export const SUPABASE_URL = (process.env.NEXT_PUBLIC_SUPABASE_URL ?? '').replace(/\/+$/, '')
+export const SUPABASE_URL = (
+  process.env.NEXT_PUBLIC_SUPABASE_URL ?? 'https://ztayzyuyfmurhtkwiohq.supabase.co'
+).replace(/\/+$/, '')
 const BUCKET = 'contribution_images'
 
 /** Nothing answered: wrong host, service down, no network. */
@@ -212,14 +224,55 @@ function parse<T>(body: string): T | null {
 /** The radius is in miles, so callers holding metres have one place to convert. */
 export const METRES_PER_MILE = 1609.344
 
-/** The map's own feature shape, plus what only this service knows about one. */
-export type CommunityFeature = AccessFeature & {
+/**
+ * The map's own feature shape, plus what only this service knows about one.
+ *
+ * Coordinates are nullable here where `AccessFeature`'s are not, and that is the
+ * point: `POST /contributions/` writes only the `location` geometry and never
+ * the `lat`/`long` columns these endpoints read, so a feature that genuinely
+ * cannot be placed is a normal response, not a malformed one. Typing it as
+ * `number` would push a silent `undefined` onto the map. Callers that draw
+ * something must narrow first — `placed()` does it.
+ */
+export type CommunityFeature = Omit<AccessFeature, 'lat' | 'lng'> & {
+  lat: number | null
+  lng: number | null
   /** Past the vote threshold, so it belongs on the map rather than in review. */
   verified: boolean
   /** What a vote is cast against. Null means the row was never finished. */
   contributionId: string | null
   /** The backend's own id, before we prefix it. */
   featureId: string
+}
+
+/**
+ * Where a feature is, from whichever of the three sources actually has it.
+ *
+ * `/features` sends `lat`/`lng`. `/features/{id}` sends neither — the `lat` and
+ * `long` columns are never written, so its only position is the `location`
+ * geometry, and decoding that is the difference between a photo that can be put
+ * on a map and one that cannot.
+ */
+function coordsOf(raw: BackendFeature): { lat: number | null; lng: number | null } {
+  const lat = raw.lat ?? null
+  const lng = raw.lng ?? raw.long ?? null
+  if (lat !== null && lng !== null) return { lat, lng }
+
+  const decoded = pointFromEwkb(raw.location)
+  return decoded ?? { lat, lng }
+}
+
+/** A community feature the map can actually draw: one that has coordinates. */
+export type PlacedFeature = CommunityFeature & { lat: number; lng: number }
+
+/**
+ * Narrows to features that can be put on a map.
+ *
+ * A type guard rather than a filter callback so the array that comes out is
+ * typed as placed, and the map never has to assert coordinates it was handed.
+ */
+export function placed(feature: CommunityFeature): feature is PlacedFeature {
+  return typeof feature.lat === 'number' && typeof feature.lng === 'number'
 }
 
 const KNOWN_TYPES = Object.keys(FEATURE_TYPES) as FeatureType[]
@@ -246,12 +299,26 @@ function toCommunityFeature(raw: BackendFeature): CommunityFeature {
     type,
     name: !name || name === raw.type ? FEATURE_TYPES[type].label : name,
     description: raw.description?.trim() || undefined,
-    lat: raw.lat,
-    lng: raw.lng,
+    ...coordsOf(raw),
     status: 'working',
-    verified: String(raw.status).toLowerCase() === 'true',
+    verified: verifiedFrom(raw),
     contributionId: raw.contribution_id === null ? null : String(raw.contribution_id),
   }
+}
+
+/**
+ * Whether the community has confirmed this feature.
+ *
+ * Two spellings for one fact. `/features` sends Python's `str(verified)`, so the
+ * literal text "True" or "False" — and `Boolean("False")` is `true`, which would
+ * silently put every unconfirmed feature on the map. `/features/{id}` returns
+ * the raw column instead, an actual boolean. Both are handled here so neither
+ * can be got wrong at a call site.
+ */
+function verifiedFrom(raw: BackendFeature) {
+  if (typeof raw.verified === 'boolean') return raw.verified
+  const flag = raw.status ?? raw.verified
+  return String(flag).toLowerCase() === 'true'
 }
 
 /** The public URL of a contribution photo, if the bucket is configured and public. */
@@ -377,21 +444,78 @@ export const accessway = {
     lng,
     type,
     path,
+    name,
     secret,
   }: {
     lat: number
     lng: number
     type: FeatureType
     path: string
+    /**
+     * What the contributor called the place. Required by the API as of
+     * `add_contribution(... name ...)`, and deliberately *not* part of the
+     * secret hash — it is free text the user can retype between `init` and this
+     * call, and binding it would reject every upload where they did.
+     */
+    name: string
     secret: string
   }): Promise<CreatedContribution> {
     const created = await request<CreateContributionResponse>(
-      `/contributions/?${query({ lat, lon: lng, type, path, secret })}`,
+      `/contributions/?${query({ lat, lon: lng, type, path, name, secret })}`,
       // Never retried: this inserts rows, so a repeat after a timeout that
       // actually landed would put the same ramp on the map twice.
       { method: 'POST', budgetMs: BUDGET_MS.write, attempts: ATTEMPTS.once },
     )
     return { featureId: idIn(created.feature), contributionId: idIn(created.contribution) }
+  },
+
+  /**
+   * One feature by its own id, which is what a contribution row points at.
+   *
+   * The reason this matters: `GET /features?lat&long&radius` is the only other
+   * way to reach a feature, and a photo row carries no coordinates — so without
+   * this there is no way to look up the feature a photo belongs to except by
+   * already knowing roughly where it is.
+   *
+   * Returns null for both "no such feature" and "no such endpoint", so a caller
+   * can ask about an id it is not sure about without handling an exception.
+   *
+   * Note the response is the raw `Features` row, not the mapped shape the area
+   * endpoint returns — a one-element array, `verified` as a real boolean, and no
+   * lat/long columns at all. `toCommunityFeature` absorbs all three.
+   */
+  async getFeature(featureId: string, signal?: AbortSignal): Promise<CommunityFeature | null> {
+    try {
+      const raw = await request<BackendFeature | BackendFeature[]>(
+        `/features/${encodeURIComponent(featureId)}`,
+        { signal },
+      )
+      // Unshipped, so the shape is unconfirmed — accept a bare object or a
+      // one-row array rather than breaking on whichever it turns out to be.
+      const row = Array.isArray(raw) ? raw[0] : raw
+      if (row && row.id !== undefined) return toCommunityFeature(row)
+      return null
+    } catch (err) {
+      if (err instanceof AccesswayError && err.status === 404) return null
+      throw err
+    }
+  },
+
+  /**
+   * Every photo row in the table.
+   *
+   * The only read that returns `image_path`, so it is the whole reason a photo
+   * can be shown at all. It is also unfiltered — no bbox, no limit, no auth —
+   * so this is the entire table on every call, and it carries none of the
+   * things a card needs except the photo itself. Join it to `/features` on
+   * `feature_id` for the coordinates, type and vote state.
+   */
+  async listContributions(signal?: AbortSignal): Promise<ContributionRow[]> {
+    // The trailing slash matters: `/contributions` answers 307 to it, and a
+    // redirected cross-origin request drops credentials on some browsers.
+    const raw = await request<ContributionRow[]>('/contributions/', { signal })
+    if (!Array.isArray(raw)) throw new AccesswayError(NOT_THE_API, '/contributions/ did not return a list.')
+    return raw
   },
 
   /** What to vote on, given a feature id from `/features`. */
@@ -427,11 +551,14 @@ export async function contributePhoto({
   lat,
   lng,
   type,
+  name,
 }: {
   file: File
   lat: number
   lng: number
   type: FeatureType
+  /** Required by `POST /contributions/`; the upload form already collects it. */
+  name: string
 }): Promise<CreatedContribution & { path: string }> {
   const ticket = await accessway.initContribution({ lat, lng, type, fileType: extensionOf(file) })
   await accessway.uploadPhoto(ticket, file)
@@ -439,6 +566,7 @@ export async function contributePhoto({
     lat,
     lng,
     type,
+    name,
     path: ticket.path,
     secret: ticket.secret,
   })
