@@ -48,6 +48,7 @@ async def get_feature_by_id(id: int):
 
     response = (
         supabase.table('Features')
+        .select('*')
         .eq('id', id)
         .execute()
     )
