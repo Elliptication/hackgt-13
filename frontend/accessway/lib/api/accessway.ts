@@ -34,10 +34,20 @@ export const ACCESSWAY_API_URL = (
 
 /**
  * Where contribution photos end up. The API hands back a storage *path*, never
- * a URL, so the bucket has to be named here to turn one into the other. Unset,
- * uploads still work — the photo just cannot be read back from the server.
+ * a URL, so the bucket has to be named here to turn one into the other.
+ *
+ * Defaulted rather than required, the same way ACCESSWAY_API_URL is. This is the
+ * project's public storage host — the same value already committed in
+ * backend/wrangler.jsonc — and the bucket it points at is public, so there is
+ * nothing here that a reader of the deployed page could not already see. It is
+ * defaulted because leaving it unset silently costs every photo on the site, and
+ * a blank gallery is a poor way to find out an env var was missed.
+ *
+ * NEXT_PUBLIC_SUPABASE_URL still overrides it, for a different project.
  */
-export const SUPABASE_URL = (process.env.NEXT_PUBLIC_SUPABASE_URL ?? '').replace(/\/+$/, '')
+export const SUPABASE_URL = (
+  process.env.NEXT_PUBLIC_SUPABASE_URL ?? 'https://ztayzyuyfmurhtkwiohq.supabase.co'
+).replace(/\/+$/, '')
 const BUCKET = 'contribution_images'
 
 /** Nothing answered: wrong host, service down, no network. */
