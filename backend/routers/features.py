@@ -30,7 +30,7 @@ async def features_by_location(lat : float, long : float, radius : float):
         {
             'id' : v['id'], 
             'type' : v['type'],
-            'name' : v['type'],
+            'name' : v['name'],
             'description' : '',
             'lat' : v['lat'],
             'lng' : v['long'],
