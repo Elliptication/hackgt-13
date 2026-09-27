@@ -6,6 +6,16 @@ import { toPlace } from '@/lib/osm/transform'
 import type { Place } from '@/types/places'
 import { areaFor, fail, ok, responseKey } from '../_shared'
 
+/**
+ * A cold cell means an ~11 MB fetch from OpenStreetMap, which is seconds rather
+ * than milliseconds. Vercel's default function timeout is short enough to cut
+ * that off and return a gateway error instead, so the ceiling is raised here.
+ *
+ * Warm cells answer from cache in milliseconds and never approach this.
+ */
+export const maxDuration = 60
+
+
 /** Tag keys that mark an element as somewhere you might go. */
 const PLACE_KEYS = ['amenity', 'shop', 'tourism', 'leisure', 'office', 'healthcare']
 

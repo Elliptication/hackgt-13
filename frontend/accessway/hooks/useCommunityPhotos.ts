@@ -25,8 +25,12 @@ export type CommunityPhoto = {
   id: string
   /** Resolved public URL, or undefined when the bucket is not configured. */
   photoUrl?: string
-  /** Google `sub` of the uploader, for keeping people off their own photos. */
-  userId: string
+  /**
+   * Google `sub` of the uploader, for keeping people off their own photos.
+   * Null on a row created outside the upload flow, which never matches a
+   * signed-in viewer — so such a photo is nobody's to be excluded from.
+   */
+  userId: string | null
   uploadedAt: number
 }
 
@@ -93,6 +97,12 @@ export function useCommunityPhotos() {
     const out: PhotosByFeature = new Map()
     for (const row of rows) {
       if (!row.image_path) continue
+      // No feature means nothing to review. `POST /vote/` resolves a feature by
+      // contribution id and 404s when there isn't one, so a row like this can
+      // never be voted on — and `String(null)` is the string "null", which used
+      // to become a map key and put an unvotable card in the queue with no type,
+      // no name and no location.
+      if (row.feature_id === null || row.feature_id === undefined || row.feature_id === '') continue
       const key = String(row.feature_id)
       const list = out.get(key)
       if (list) list.push(toPhoto(row))
@@ -105,6 +115,15 @@ export function useCommunityPhotos() {
   return {
     /** Photos keyed by the backend's raw `feature_id`. */
     byFeatureId,
+    /**
+     * Uploads with no `feature_id`. Real photos with nothing attached, so they
+     * cannot be reviewed or placed — they only ever arrive from a row inserted
+     * outside the upload flow, which sets both this and `user_id`.
+     */
+    orphaned: useMemo(
+      () => (rows ?? []).filter((r) => r.image_path && (r.feature_id === null || r.feature_id === undefined)).length,
+      [rows],
+    ),
     /** Every photo row, newest first — for showing uploads the map cannot place. */
     all: useMemo(
       () => (rows ?? []).filter((r) => r.image_path).map(toPhoto).sort((a, b) => b.uploadedAt - a.uploadedAt),

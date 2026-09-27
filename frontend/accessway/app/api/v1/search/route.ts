@@ -4,6 +4,16 @@ import type { Accessibility, Place, PlaceCategory, WheelchairAccess } from '@/ty
 import { fail, ok } from '../_shared'
 
 /**
+ * A cold cell means an ~11 MB fetch from OpenStreetMap, which is seconds rather
+ * than milliseconds. Vercel's default function timeout is short enough to cut
+ * that off and return a gateway error instead, so the ceiling is raised here.
+ *
+ * Warm cells answer from cache in milliseconds and never approach this.
+ */
+export const maxDuration = 60
+
+
+/**
  * GET /api/v1/search?q=&bbox=
  *
  * Type-ahead search for the From and To fields: places, addresses, streets,

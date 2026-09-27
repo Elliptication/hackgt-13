@@ -51,8 +51,8 @@ export type ReviewItem = {
   /** The feature the upload created. Present even when `/features` cannot find it. */
   featureId: string
   photoUrl?: string
-  /** Google `sub` of the uploader. */
-  uploadedBy: string
+  /** Google `sub` of the uploader. Null on a row not created by the upload flow. */
+  uploadedBy: string | null
   uploadedAt: number
   /**
    * From `/features`, when the join lands. Null means the API knows the photo

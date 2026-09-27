@@ -6,6 +6,16 @@ import { featureTypeOf, nameByNearest, toFeature, wheelchairOf } from '@/lib/osm
 import type { AccessFeature } from '@/types/features'
 import { areaFor, fail, ok, responseKey } from '../_shared'
 
+/**
+ * A cold cell means an ~11 MB fetch from OpenStreetMap, which is seconds rather
+ * than milliseconds. Vercel's default function timeout is short enough to cut
+ * that off and return a gateway error instead, so the ceiling is raised here.
+ *
+ * Warm cells answer from cache in milliseconds and never approach this.
+ */
+export const maxDuration = 60
+
+
 /** GET /api/v1/features?tile= — lifts, step-free entrances, restrooms, ramps. */
 export async function GET(request: NextRequest) {
   const params = request.nextUrl.searchParams
