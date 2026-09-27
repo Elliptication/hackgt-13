@@ -54,7 +54,7 @@ async def get_contribution_id(feature_id: int):
     return {'contribution_id': response.data[0]['contribution_id']}
 
 @router.post('/')
-async def add_contribution(lat: float, lon: float, type: str, path: str, secret: str, current_user: dict = Depends(get_current_user)):
+async def add_contribution(lat: float, lon: float, type: str, path: str, name : str, secret: str, current_user: dict = Depends(get_current_user)):
     supabase = get_supabase()
     # check secret
     user_id = current_user["id"]

@@ -42,7 +42,17 @@ async def features_by_location(lat : float, long : float, radius : float):
 
     return data
     
+@router.get('/{id}')
+async def get_feature_by_id(id: int):
+    supabase = get_supabase()
 
+    response = (
+        supabase.table('Features')
+        .eq('id', id)
+        .execute()
+    )
+
+    return response.data
 
 
 def update_verification_status(contribution_id : str):
