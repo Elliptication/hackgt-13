@@ -1,6 +1,6 @@
-export const GOOGLE_LOGIN_URL = 'https://api.accessway.tech/auth/login'
-export const CURRENT_USER_URL = 'https://api.accessway.tech/auth/me'
-export const LOGOUT_URL = 'https://api.accessway.tech/auth/logout'
+export const GOOGLE_LOGIN_URL: string = 'https://api.accessway.tech/auth/login'
+export const CURRENT_USER_URL: string = 'https://api.accessway.tech/auth/me'
+export const LOGOUT_URL: string = 'https://api.accessway.tech/auth/logout'
 
 /**
  * The full address the Google button goes to, carrying where to come back to.

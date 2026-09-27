@@ -6,15 +6,11 @@ import { api, isBackendMissing } from '@/lib/api'
 import type { Place } from '@/types/places'
 
 /**
- * Type-ahead destination search.
+ * Type-ahead search for the From and To fields: places, addresses, streets,
+ * cities and countries, anywhere in the world (see app/api/v1/search).
  *
- * Backed by Nominatim rather than Overpass. Overpass is an analytical engine —
- * it answers a wide query in seconds when idle, times out when it isn't, and
- * rate-limits anything that asks repeatedly, which made typing feel broken.
- * Nominatim is built for name lookup and returns in well under a second.
- *
- * The bbox biases results toward wherever the map is pointed, so this follows
- * the user around the world rather than being pinned to one campus.
+ * The bbox makes results lean toward you — or the map, if your location is
+ * unknown — without hiding well-known places elsewhere.
  */
 export function usePlaceSearch(query: string, bbox: string | null, near?: { lat: number; lng: number } | null) {
   const [results, setResults] = useState<Place[]>([])
@@ -38,8 +34,7 @@ export function usePlaceSearch(query: string, bbox: string | null, near?: { lat:
     setLoading(true)
     const ticket = ++latest.current
 
-    // Nominatim asks for at most one request a second; 350ms of quiet keeps us
-    // well inside that while still feeling immediate.
+    // Wait for a pause in typing, so a burst of keystrokes is one search.
     const timer = setTimeout(async () => {
       try {
         // A box around the user beats the viewport: they may have panned away,

@@ -2,6 +2,7 @@
 
 import { useMemo } from 'react'
 
+import { isFeatureType, toFeatureType } from '@/data/FeatureTypes'
 import type { AccessFeature } from '@/types/features'
 
 import { useTiledData } from './useTiledData'
@@ -16,7 +17,9 @@ export function useFeatures(bbox: string | null, zoom: number | null) {
   const { bodies, loading, error, tilesLoaded, tooFarOut, noBackend } = useTiledData<{ items: AccessFeature[] }>('features', bbox, zoom)
 
   const features = useMemo(() => {
-    return [...new Map(bodies.flatMap((b) => b.items).map((f) => [f.id, f])).values()]
+    // A tile cached before a type was renamed can still carry the old name.
+    const items = bodies.flatMap((b) => b.items).map((f) => (isFeatureType(f.type) ? f : { ...f, type: toFeatureType(f.type) }))
+    return [...new Map(items.map((f) => [f.id, f])).values()]
   }, [tilesLoaded, bodies])
 
   return { features, loading, error, tooFarOut, noBackend }

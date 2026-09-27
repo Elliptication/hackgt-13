@@ -91,12 +91,12 @@ export function featureTypeOf(tags: Record<string, string>): FeatureType | null 
   if (tags.highway === 'elevator' || tags.elevator === 'yes') return 'elevator'
   if (tags.amenity === 'toilets' || tags['toilets:wheelchair'] === 'yes') return 'restroom'
   if (tags.ramp === 'yes' || tags['ramp:wheelchair'] === 'yes') return 'ramp'
-  if (tags.entrance || tags.automatic_door === 'yes') return 'entrance'
+  if (tags.entrance || tags.automatic_door === 'yes') return 'accessible_entrance'
   // A venue tagged wheelchair=yes means you can get in without steps. That is
   // an accessible entrance, not an "Other" - the generic bucket told a user
   // nothing and made up two thirds of every result.
   if (tags.wheelchair === 'yes' || tags.wheelchair === 'designated' || tags.wheelchair === 'limited') {
-    return 'entrance'
+    return 'accessible_entrance'
   }
   return null
 }
@@ -137,7 +137,7 @@ export function nameByNearest(features: AccessFeature[], elements: OsmElement[])
   const NOUN: Record<FeatureType, string> = {
     elevator: 'Elevator',
     restroom: 'Accessible restroom',
-    entrance: 'Entrance with no stairs',
+    accessible_entrance: 'Entrance with no stairs',
     ramp: 'Ramp',
     other: 'No stairs',
   }

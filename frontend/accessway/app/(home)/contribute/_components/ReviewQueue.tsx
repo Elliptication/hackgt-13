@@ -1,7 +1,7 @@
 'use client'
 
-import { Check, PartyPopper, SkipForward, X } from 'lucide-react'
-import { useState } from 'react'
+import { Check, MapPin, PartyPopper, SkipForward, X } from 'lucide-react'
+import { useEffect, useState } from 'react'
 
 import { Button } from '@/components/Button'
 import { LoginButton } from './LoginButton'
@@ -9,21 +9,118 @@ import { ContributionPhoto } from './ContributionPhoto'
 import { LocationPicker } from './LocationPicker'
 import { useContributions } from '@/hooks/useContributions'
 import { useRequireAuth } from '@/hooks/useRequireAuth'
+import { accessway, isBackendDown, METRES_PER_MILE, YES_VOTES_TO_VERIFY } from '@/lib/api/accessway'
 import { VOTES_TO_APPROVE } from '@/lib/constants'
-import type { Vote } from '@/types/contribute'
+import { tilesForBbox, tileToCircle } from '@/lib/geo/tiles'
+import type { Contribution, Vote } from '@/types/contribute'
 import { FEATURE_TYPES } from '@/data/FeatureTypes'
 
-export function ReviewQueue() {
-  const { contributions, userId, myVotes, vote } = useContributions()
+/** A report opened from the map, by its marker id and where it is. */
+export type ReviewFocus = { featureId: string; lat: number; lng: number }
+
+type FocusState = 'loading' | 'ready' | 'missing' | 'unvotable' | 'down' | 'failed'
+
+const COMMUNITY = 'community-'
+const LOCAL = 'contribution-'
+
+/**
+ * Finds the report a map marker link points at and puts it in the queue.
+ *
+ * Map markers from the API are `community-<feature id>`. The API only looks
+ * features up by area, so this asks for the same cell the map loaded it from
+ * and picks it out by id. Markers for photos added in this tab are
+ * `contribution-<id>` and are already in the queue.
+ */
+function useFocusedReport(focus: ReviewFocus | null): { id: string | null; state: FocusState | null } {
+  const { contributions, adopt } = useContributions()
+  const featureId = focus?.featureId ?? ''
+  const communityId = featureId.startsWith(COMMUNITY) ? featureId.slice(COMMUNITY.length) : null
+  const localId = featureId.startsWith(LOCAL) ? featureId.slice(LOCAL.length) : null
+  const id = localId ?? (communityId && `${COMMUNITY}${communityId}`)
+  const known = !!id && contributions.some((c) => c.id === id)
+  const [state, setState] = useState<FocusState>('loading')
+
+  const lat = focus?.lat
+  const lng = focus?.lng
+  useEffect(() => {
+    if (!communityId || known || lat === undefined || lng === undefined) return
+    const controller = new AbortController()
+    const [tile] = tilesForBbox({ south: lat, north: lat, west: lng, east: lng })
+    const circle = tileToCircle(tile)
+
+    accessway
+      .getFeatures(
+        { lat: circle.lat, lng: circle.lng, radiusMiles: Number((circle.radius / METRES_PER_MILE).toFixed(4)) },
+        controller.signal,
+      )
+      .then((found) => {
+        const f = found.find((x) => x.featureId === communityId)
+        if (!f) return setState('missing')
+        // A vote is cast against the contribution; without one there is nothing to vote on.
+        if (!f.contributionId) return setState('unvotable')
+        const report: Contribution = {
+          id: `${COMMUNITY}${communityId}`,
+          type: f.type,
+          name: f.name,
+          lat: f.lat,
+          lng: f.lng,
+          photoUrl: f.photoUrl,
+          // The API does not say who added it, only that it was not this tab.
+          submittedBy: 'community',
+          submittedAt: Date.now(),
+          confirms: f.report?.yes ?? YES_VOTES_TO_VERIFY,
+          rejects: 0,
+          needed: YES_VOTES_TO_VERIFY,
+          status: f.verified ? 'approved' : 'pending',
+          contributionId: f.contributionId,
+          featureId: f.featureId,
+        }
+        adopt(report)
+        setState('ready')
+      })
+      .catch((err: unknown) => {
+        if (controller.signal.aborted) return
+        setState(isBackendDown(err) ? 'down' : 'failed')
+      })
+    return () => controller.abort()
+  }, [communityId, known, lat, lng, adopt])
+
+  if (!focus) return { id: null, state: null }
+  if (known) return { id, state: 'ready' }
+  if (!id) return { id: null, state: 'missing' }
+  return { id, state: localId ? 'missing' : state }
+}
+
+const FOCUS_MESSAGE: Partial<Record<FocusState, string>> = {
+  loading: 'Finding that report…',
+  missing: 'Couldn’t find that report — it may have been removed.',
+  unvotable: 'That report can’t be voted on yet.',
+  down: 'The AccessWay API isn’t answering, so that report can’t be loaded right now.',
+  failed: 'Couldn’t load that report. Try again in a moment.',
+}
+
+export function ReviewQueue({ focus = null }: { focus?: ReviewFocus | null }) {
+  const { contributions, userId, myVotes, vote, syncError } = useContributions()
   const requireAuth = useRequireAuth()
   const [skipped, setSkipped] = useState<string[]>([])
   const [lastVote, setLastVote] = useState<Vote | null>(null)
+  const focused = useFocusedReport(focus)
 
   // Other people's pending photos you haven't voted on or skipped
   const queue = contributions.filter(
     (c) => c.status === 'pending' && c.submittedBy !== userId && !myVotes[c.id] && !skipped.includes(c.id),
   )
-  const current = queue[0]
+  // The report opened from the map goes first, until it's voted on or skipped.
+  const fromMap = queue.find((c) => c.id === focused.id)
+  const current = fromMap ?? queue[0]
+  const fromMapDone = focused.state === 'ready' && focused.id && !fromMap
+  const focusNote = fromMapDone
+    ? myVotes[focused.id!]
+      ? 'You’ve already voted on that report.'
+      : contributions.find((c) => c.id === focused.id)?.status === 'approved'
+        ? 'That report is already confirmed.'
+        : null
+    : focused.state && FOCUS_MESSAGE[focused.state]
   const reviewedCount = Object.keys(myVotes).length
 
   function cast(v: Vote) {
@@ -50,12 +147,23 @@ export function ReviewQueue() {
         </p>
       </header>
 
+      {focusNote && (
+        <p role="status" className="mx-auto mt-4 w-fit rounded-full bg-surface px-4 py-1.5 text-sm text-muted ring-1 ring-border/60">
+          {focusNote}
+        </p>
+      )}
+
       {current ? (
         <article
           key={current.id}
           className="mt-8 overflow-hidden rounded-3xl bg-background shadow-[0_8px_30px_-12px_rgb(15_15_15/0.18)] ring-1 ring-border"
           aria-labelledby="review-name"
         >
+          {fromMap && (
+            <p className="flex items-center gap-1.5 bg-primary-soft px-5 py-2 text-sm font-medium">
+              <MapPin className="size-4" aria-hidden="true" /> The report you picked on the map
+            </p>
+          )}
           <ContributionPhoto contribution={current} className="aspect-[4/3] w-full" />
 
           <div className="p-5 sm:p-6">
@@ -74,7 +182,6 @@ export function ReviewQueue() {
             <h2 id="review-name" className="mt-3 text-xl font-bold">
               {current.name}
             </h2>
-            <p className="mt-1 text-[15px] leading-relaxed text-muted">{current.description}</p>
 
             <div className="mt-4 h-36 overflow-hidden rounded-2xl ring-1 ring-border" aria-label="Location on map" role="img">
               <LocationPicker
@@ -116,8 +223,15 @@ export function ReviewQueue() {
             </button>
 
             <p className="mt-4 text-center text-xs text-muted">
-              {current.confirms} of {VOTES_TO_APPROVE} confirmations so far
+              {current.confirms} of {current.needed ?? VOTES_TO_APPROVE} confirmations so far
             </p>
+
+            {/* A vote counted here that the API refused. Said once, not per photo. */}
+            {syncError && (
+              <p role="status" className="mt-3 rounded-2xl bg-[var(--tag-yellow-bg)] px-3 py-2 text-center text-xs">
+                {syncError}
+              </p>
+            )}
           </div>
         </article>
       ) : (

@@ -64,7 +64,7 @@ GET /features?tile=14/4350/6556
 ```jsonc
 // GET /features
 { "items": [
-    { "id": "osm-node-760929140", "type": "entrance", "name": "Publix",
+    { "id": "osm-node-760929140", "type": "accessible_entrance", "name": "Publix",
       "lat": 33.7927085, "lng": -84.3978483, "status": "working" }
   ], "total": 1 }
 
@@ -87,7 +87,7 @@ GET /features?tile=14/4350/6556
    is fine — both are sent. The JSON field must be `lng`. This is the single
    most likely failure.
 2. **`{ items, total }`, never a bare array.**
-3. **`type` must be exactly one of** `ramp` `elevator` `entrance` `restroom`
+3. **`type` must be exactly one of** `ramp` `elevator` `accessible_entrance` `restroom`
    `other`. Anything else renders a pin with no icon.
 4. **`access` must be exactly one of** `yes` `limited` `no` `unknown`, and
    `unknown` must stay distinct from `no`. "Nobody has checked" and "you cannot

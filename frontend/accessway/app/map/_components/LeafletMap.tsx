@@ -15,6 +15,7 @@ import type { LatLng } from '@/types/places'
 import type { Route } from '@/types/routes'
 import type { Contribution } from '@/types/contribute'
 import type { GeoFix, GeoStatus } from '@/hooks/useGeolocation'
+import { reportOpacity } from '@/lib/contribute'
 
 import { DroppedPin } from './DroppedPin'
 import { FeatureMarker } from './FeatureMarker'
@@ -212,14 +213,22 @@ function FeatureLayer({
     const current = new Set<string>()
     for (const f of features) {
       current.add(f.id)
-      if (drawn.current.has(f.id)) continue
+      // Unconfirmed reports are faint, and fill in as yes votes come in.
+      const opacity = reportOpacity(f.report)
+      const existing = drawn.current.get(f.id)
+      if (existing) {
+        // Already drawn: only a change in votes needs repainting.
+        if (existing.options.fillOpacity !== opacity) existing.setStyle({ opacity, fillOpacity: opacity })
+        continue
+      }
       const dot = L.circleMarker([f.lat, f.lng], {
         renderer,
         radius: 5,
         color: '#ffffff',
         weight: 1.5,
+        opacity,
         fillColor: fill[f.type],
-        fillOpacity: 1,
+        fillOpacity: opacity,
       }).on('click', () => onSelectRef.current(f.id))
       dots.addLayer(dot)
       drawn.current.set(f.id, dot)

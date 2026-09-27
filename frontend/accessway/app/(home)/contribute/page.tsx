@@ -13,10 +13,17 @@ export const metadata: Metadata = {
 export default async function ContributePage({
   searchParams,
 }: {
-  searchParams: Promise<{ tab?: string | string[] }>
+  searchParams: Promise<Record<string, string | string[] | undefined>>
 }) {
-  const { tab } = await searchParams
-  const active: ContributeTab = tab === 'review' ? 'review' : 'add'
+  const params = await searchParams
+  const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v)
+  const active: ContributeTab = one(params.tab) === 'review' ? 'review' : 'add'
+
+  // Opened from a report on the map: review that one first.
+  const featureId = one(params.feature)
+  const lat = Number(one(params.lat))
+  const lng = Number(one(params.lng))
+  const focus = featureId && Number.isFinite(lat) && Number.isFinite(lng) ? { featureId, lat, lng } : null
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-10 sm:px-6 sm:py-14">
@@ -36,7 +43,7 @@ export default async function ContributePage({
             <MySubmissions />
           </div>
         ) : (
-          <ReviewQueue />
+          <ReviewQueue focus={focus} />
         )}
       </div>
     </div>

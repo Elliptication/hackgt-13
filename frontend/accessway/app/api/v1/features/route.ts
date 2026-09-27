@@ -24,7 +24,7 @@ export async function GET(request: NextRequest) {
       const type = featureTypeOf(tags)
       if (!type) return []
       // A doorway that says nothing about access is noise, not information.
-      if (type === 'entrance' && wheelchairOf(tags) === 'unknown' && tags.automatic_door !== 'yes') return []
+      if (type === 'accessible_entrance' && wheelchairOf(tags) === 'unknown' && tags.automatic_door !== 'yes') return []
       const feature = toFeature(el, type)
       return feature ? [feature] : []
     })

@@ -13,6 +13,7 @@ import { UserMenu } from '@/components/Header/UserMenu'
 import { FEATURE_TYPES } from '@/data/FeatureTypes'
 import { useAuth } from '@/hooks/useAuth'
 import { useContributions } from '@/hooks/useContributions'
+import { useCommunityFeatures } from '@/hooks/useCommunityFeatures'
 import { useFeatures } from '@/hooks/useFeatures'
 import { useGeolocation } from '@/hooks/useGeolocation'
 import { useWalkable } from '@/hooks/useWalkable'
@@ -20,7 +21,7 @@ import { usePlaceSearch } from '@/hooks/usePlaceSearch'
 import { useRoute } from '@/hooks/useRoute'
 import { APP_NAME } from '@/lib/constants'
 import { FEATURE_ICONS } from '@/lib/featureIcons'
-import { toFeature } from '@/lib/contribute'
+import { reportOpacity, toFeature } from '@/lib/contribute'
 import type { FeatureType } from '@/types/features'
 import type { LatLng, Place } from '@/types/places'
 
@@ -63,15 +64,33 @@ export function MapView({ notice = null }: MapViewProps) {
   const { position: myLocation, status: locationStatus, message: locationMessage, locate } = useGeolocation()
   const origin: LatLng | null = myLocation
 
-  const { features: surveyed, loading: loadingArea, error: areaError, tooFarOut, noBackend } = useFeatures( bbox, zoom)
+  const { features: surveyed, loading: loadingArea, error: areaError, tooFarOut, noBackend } = useFeatures(bbox, zoom)
+  // What people have added, from the AccessWay API. Confirmed ones only — a
+  // photo still in review is somebody's claim, not yet a place to rely on.
+  const { features: community, pending: reported, unavailable: communityDown } = useCommunityFeatures(bbox, zoom)
   const { contributions } = useContributions()
 
-  const features = useMemo(
-    () => [...surveyed, ...contributions.filter((c) => c.status === 'approved').map(toFeature)],
-    [surveyed, contributions],
-  )
+  // Confirmed community photos sit alongside surveyed data on the same map.
+  // OpenStreetMap has a wheelchair tag on under 2% of buildings around here, so
+  // what people add is not a nice-to-have — it is most of the eventual map.
+  const features = useMemo(() => {
+    // A photo uploaded in this session is already on the API, so once the area
+    // reloads it arrives twice — once from the server, once from local state.
+    const fromServer = new Set([...community, ...reported].map((f) => f.featureId))
+    const mine = contributions
+      .filter((c) => c.status !== 'rejected' && !(c.featureId && fromServer.has(c.featureId)))
+      .map(toFeature)
+
+    // Unconfirmed reports are on the map too, drawn faint and filling in as
+    // people vote yes (see reportOpacity). Rejected ones are left off.
+    return [...surveyed, ...community, ...reported, ...mine]
+  }, [surveyed, community, reported, contributions])
   const { paths, kerbs, loading: loadingWalkable } = useWalkable(showWalkable, bbox, zoom)
-  const { results, loading: searching, error: searchError, offline: searchOffline } = usePlaceSearch(query, bbox, origin)
+  // Search leans toward you, but only needs to know roughly where (about 1 km).
+  // Your live position changes every few seconds as you walk; passing it exactly
+  // would restart a search you're in the middle of typing each time.
+  const searchNear = origin && { lat: Math.round(origin.lat * 100) / 100, lng: Math.round(origin.lng * 100) / 100 }
+  const { results, loading: searching, error: searchError, offline: searchOffline } = usePlaceSearch(query, bbox, searchNear)
   const { route, destination, loading: routing, error: routeError, offline: routeOffline, findRoute, clear } = useRoute()
 
   const handleBounds = useCallback((next: string, level: number) => {
@@ -417,7 +436,10 @@ export function MapView({ notice = null }: MapViewProps) {
 
                   {filterOpen && (
                     <div id={filterId} role="group" aria-label="Show only" className="flex flex-wrap gap-1.5 px-2 pt-1.5 pb-1">
-                      {(Object.entries(FEATURE_TYPES) as [FeatureType, (typeof FEATURE_TYPES)[FeatureType]][]).map(
+                      {(Object.entries(FEATURE_TYPES) as [FeatureType, (typeof FEATURE_TYPES)[FeatureType]][])
+                        // "Other" isn't a type anyone can add any more, so it isn't a filter either.
+                        .filter(([type]) => type !== 'other')
+                        .map(
                         ([type, meta]) => {
                           const Icon = FEATURE_ICONS[type]
                           const on = typeFilter.has(type)
@@ -474,6 +496,15 @@ export function MapView({ notice = null }: MapViewProps) {
                       </span>
                     </p>
                   )}
+
+                  {/* Said plainly and once: nothing people added is showing, and
+                      why. The alternative is a map that just looks empty. */}
+                  {communityDown && !tooFarOut && (
+                    <p className="mx-1 mt-1 rounded-2xl bg-surface px-3 py-2.5 text-xs leading-relaxed text-muted ring-1 ring-border">
+                      Community reports aren’t loading — the AccessWay API isn’t answering yet. Everything below
+                      comes from the survey data.
+                    </p>
+                  )}
                   {nearby.length === 0 && !loadingArea && !tooFarOut && (
                     <p className="px-3 py-4 text-sm text-muted">
                       {typeFilter.size > 0
@@ -493,16 +524,26 @@ export function MapView({ notice = null }: MapViewProps) {
                             aria-current={f.id === selectedId ? 'true' : undefined}
                             className={`flex w-full items-center gap-3 rounded-2xl px-3 py-2 text-left transition-colors hover:bg-hover ${f.id === selectedId ? 'bg-primary-soft hover:bg-primary-soft' : ''}`}
                           >
-                            <span className="grid size-9 shrink-0 place-items-center rounded-full" style={{ background: bg }}>
+                            <span
+                              className="grid size-9 shrink-0 place-items-center rounded-full"
+                              style={{ background: bg, opacity: reportOpacity(f.report) }}
+                            >
                               <Icon className="size-4" style={{ color }} aria-hidden="true" />
                             </span>
                             <span className="min-w-0">
                               <span className="block truncate text-sm font-medium">{f.name}</span>
                               <span className="block truncate text-xs text-muted">
-                                {/* The name often already is the label ("Elevator"), so
-                                    repeating it underneath just added noise. */}
-                                {f.description ?? (f.name.startsWith(label) ? '' : label)}
-                                {f.status === 'reported-issue' && ' · Reported issue'}
+                                {[
+                                  // The name often already is the label ("Elevator"), so
+                                  // repeating it underneath just added noise.
+                                  !f.name.startsWith(label) && label,
+                                  // Before the description, so a long one can't truncate it away.
+                                  f.report && `Unconfirmed ${f.report.yes}/${f.report.needed}`,
+                                  f.description,
+                                  f.status === 'reported-issue' && 'Reported issue',
+                                ]
+                                  .filter(Boolean)
+                                  .join(' · ')}
                               </span>
                             </span>
                           </button>

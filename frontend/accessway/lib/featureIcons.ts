@@ -23,7 +23,7 @@ type IconProps = SVGProps<SVGSVGElement>
  */
 export const FEATURE_ICONS: Record<FeatureType, ComponentType<IconProps>> = {
   elevator: ElevatorIcon,
-  entrance: EntranceIcon,
+  accessible_entrance: EntranceIcon,
   ramp: RampIcon,
   restroom: RestroomIcon,
   other: Accessibility,

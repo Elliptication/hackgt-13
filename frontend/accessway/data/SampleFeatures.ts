@@ -20,7 +20,7 @@ export const SAMPLE_FEATURES: AccessFeature[] = [
   },
   {
     id: 'f3',
-    type: 'entrance',
+    type: 'accessible_entrance',
     name: 'D',
     description: 'Automatic doors with push button.',
     lat: 33.7743,

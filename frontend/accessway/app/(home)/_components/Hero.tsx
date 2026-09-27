@@ -5,7 +5,7 @@ import { FEATURE_TYPES } from '@/data/FeatureTypes'
 import type { FeatureType } from '@/types/features'
 import { REWARD_CENTS, VOTES_TO_APPROVE } from '@/lib/constants'
 
-const HIGHLIGHTS: FeatureType[] = ['ramp', 'elevator', 'entrance', 'restroom']
+const HIGHLIGHTS: FeatureType[] = ['ramp', 'elevator', 'accessible_entrance', 'restroom']
 
 const STEPS = [
   {

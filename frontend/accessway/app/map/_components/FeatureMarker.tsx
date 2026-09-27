@@ -1,12 +1,14 @@
 'use client'
 
 import L from 'leaflet'
+import Link from 'next/link'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { memo, useMemo } from 'react'
 import { Marker, Popup } from 'react-leaflet'
 
 import { FEATURE_TYPES } from '@/data/FeatureTypes'
 import { FEATURE_ICONS } from '@/lib/featureIcons'
+import { reportOpacity, reviewHref } from '@/lib/contribute'
 import type { AccessFeature } from '@/types/features'
 
 /**
@@ -116,6 +118,9 @@ export const FeatureMarker = memo(function FeatureMarker({ feature, selected, on
       alt={`${feature.name} — ${label}`}
       keyboard
       eventHandlers={eventHandlers}
+      // Unconfirmed reports start faint and fill in with each yes vote. The
+      // selected one is drawn solid so you can read what you picked.
+      opacity={selected ? 1 : reportOpacity(feature.report)}
     >
       <Popup minWidth={shots.length ? 232 : 180}>
         {shots.length > 0 && (
@@ -134,10 +139,17 @@ export const FeatureMarker = memo(function FeatureMarker({ feature, selected, on
         <strong className="block text-sm">{feature.name}</strong>
         <span className="text-xs" style={{ color: 'var(--muted)' }}>
           {label}
+          {feature.report && ` · Unconfirmed ${feature.report.yes}/${feature.report.needed}`}
           {issue && ' · Reported issue'}
           {shots.length > 0 && ` · ${shots.length} photo${shots.length === 1 ? '' : 's'} from the community`}
         </span>
         {feature.description && <p className="!my-1 text-sm">{feature.description}</p>}
+        {feature.report && (
+          // Link, not <a>: a full reload would drop photos added in this tab.
+          <Link href={reviewHref(feature)} className="!mt-1.5 block text-xs font-medium">
+            Is it here? Vote →
+          </Link>
+        )}
       </Popup>
     </Marker>
   )
