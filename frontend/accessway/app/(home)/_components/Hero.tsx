@@ -3,7 +3,23 @@ import { ArrowRight, Camera, Coins, MapPinned, Search, Users } from 'lucide-reac
 import { Button } from '@/components/Button'
 import { REWARD_CENTS } from '@/lib/constants'
 
-const HIGHLIGHTS: FeatureType[] = ['ramp', 'elevator', 'accessible_entrance', 'restroom']
+/**
+ * The page leads with who it is for, and what they get.
+ *
+ * Two commitments shape everything below the headline:
+ *   - we say what we do not know, rather than implying everywhere is fine
+ *   - almost nothing is mapped yet, so the community is the product and not a
+ *     side feature — which is why "Add a place" sits in the hero rather than in
+ *     a footer
+ */
+
+const WHAT_WE_MAP = [
+  { label: 'Step-free entrances', color: 'var(--tag-purple)', bg: 'var(--tag-purple-bg)' },
+  { label: 'Elevators', color: 'var(--tag-blue)', bg: 'var(--tag-blue-bg)' },
+  { label: 'Ramps', color: 'var(--tag-green)', bg: 'var(--tag-green-bg)' },
+  { label: 'Accessible restrooms', color: 'var(--tag-orange)', bg: 'var(--tag-orange-bg)' },
+  { label: 'Stairs and curbs in the way', color: 'var(--tag-red)', bg: 'var(--tag-red-bg)' },
+]
 
 const STEPS = [
   {
