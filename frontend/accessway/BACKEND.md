@@ -2,6 +2,11 @@
 
 Every place, feature, path and route the map shows comes from this API.
 
+> **Not the same service as `api.accessway.tech`.** That one — ours, in
+> `backend/` — owns contributions, votes and community features, and is already
+> wired up: see **[ACCESSWAY-API.md](ACCESSWAY-API.md)**. This document is about
+> the data service behind the map itself.
+
 The frontend ships with stand-in handlers in `app/api/v1/` so it can be demoed
 on its own, but they are scaffolding: set `NEXT_PUBLIC_API_BASE_URL` and every
 request goes to FastAPI instead, with no component changes. Delete `app/api/`

@@ -1,9 +1,9 @@
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, HTTPException, status, Depends
 
 from db import get_supabase
 import hashlib
 from random import randbytes
-
+from routers.auth import get_current_user
 from workers import env
 from datetime import datetime
 
@@ -12,11 +12,11 @@ router = APIRouter(prefix='/contributions', tags=['features'])
 SECRET = env.UPLOAD_SECRET
 
 
-# needs auth!!
+
 @router.get('/init')
-async def init_upload(lat : float, lon : float, type : str, file_type : str):
+async def init_upload(lat: float, lon: float, type: str, file_type: str, current_user: dict = Depends(get_current_user)):
     supabase = get_supabase()
-    user_id = 'heyyo' # NEEDS AUTH!!
+    user_id = current_user["id"]
     name = hashlib.md5((str(lat) + str(lon) + str(type) + user_id + datetime.now().isoformat()).encode('utf-8')).hexdigest() + file_type
     secret = hashlib.md5((str(lat) + str(lon) + str(type) + user_id + datetime.now().date().isoformat() + SECRET).encode('utf-8')).hexdigest()
     response = (
@@ -45,12 +45,11 @@ async def get_contribution_id(feature_id: int):
 
     return {'contribution_id': response.data[0]['contribution_id']}
 
-# needs auth!!
 @router.post('/')
-async def add_contribution(lat: float, lon: float, type : str, path: str, secret : str):
+async def add_contribution(lat: float, lon: float, type: str, path: str, secret: str, current_user: dict = Depends(get_current_user)):
     supabase = get_supabase()
     # check secret
-    user_id = 'heyyo' # needs auth!!!
+    user_id = current_user["id"]
     secret_expected = hashlib.md5((str(lat) + str(lon) + str(type) + user_id + datetime.now().date().isoformat() + SECRET).encode('utf-8')).hexdigest()
 
     if secret != secret_expected:

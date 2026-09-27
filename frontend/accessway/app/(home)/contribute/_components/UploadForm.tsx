@@ -24,6 +24,8 @@ export function UploadForm() {
   const fileInput = useRef<HTMLInputElement>(null)
 
   const [photoUrl, setPhotoUrl] = useState<string | null>(null)
+  // The preview is an object URL; the API needs the bytes, so keep both.
+  const [file, setFile] = useState<File | null>(null)
   const [type, setType] = useState<FeatureType>('ramp')
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
@@ -31,21 +33,28 @@ export function UploadForm() {
   const [mapCenter, setMapCenter] = useState<LatLng>(DEFAULT_LOCATION)
   const [locating, setLocating] = useState(false)
   const [errors, setErrors] = useState<Errors>({})
-  const [justSubmitted, setJustSubmitted] = useState(false)
+  const [uploading, setUploading] = useState(false)
+  /** What happened to the last photo: on its way, or only saved here. */
+  const [result, setResult] = useState<{ ok: boolean; text: string } | null>(null)
 
-  function pickFile(file: File | undefined) {
-    if (!file) return
-    if (!file.type.startsWith('image/')) {
+  function pickFile(picked: File | undefined) {
+    if (!picked) return
+    if (!picked.type.startsWith('image/')) {
       setErrors((e) => ({ ...e, photo: 'That file isn’t an image. Try a JPG, PNG, or HEIC photo.' }))
       return
     }
-    if (file.size > MAX_BYTES) {
+    if (picked.size > MAX_BYTES) {
       setErrors((e) => ({ ...e, photo: 'That photo is over 10 MB. Try a smaller one.' }))
       return
     }
-    setPhotoUrl(URL.createObjectURL(file))
+    // Safe to release: once a photo is sent, `photoUrl` is cleared and the
+    // contribution below holds its own reference. A non-null one here is always
+    // a preview nobody has submitted.
+    if (photoUrl) URL.revokeObjectURL(photoUrl)
+    setPhotoUrl(URL.createObjectURL(picked))
+    setFile(picked)
     setErrors((e) => ({ ...e, photo: undefined }))
-    setJustSubmitted(false)
+    setResult(null)
   }
 
   function locateMe() {
@@ -70,7 +79,7 @@ export function UploadForm() {
     )
   }
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (!requireAuth()) return
     const next: Errors = {}
@@ -81,15 +90,36 @@ export function UploadForm() {
     setErrors(next)
     if (Object.keys(next).length > 0) return
 
-    submit({ type, name: name.trim(), description: description.trim(), lat: location!.lat, lng: location!.lng, photoUrl: photoUrl! })
+    const pending = {
+      type,
+      name: name.trim(),
+      description: description.trim(),
+      lat: location!.lat,
+      lng: location!.lng,
+      photoUrl: photoUrl!,
+      file,
+    }
 
-    // Reset for the next photo
+    // Clear the form first. The photo is already in the list below, and holding
+    // the fields hostage to an upload only makes the next one slower to start.
     setPhotoUrl(null)
+    setFile(null)
     setName('')
     setDescription('')
     setLocation(null)
     if (fileInput.current) fileInput.current.value = ''
-    setJustSubmitted(true)
+
+    setUploading(true)
+    setResult(null)
+    const outcome = await submit(pending)
+    setUploading(false)
+
+    if (!outcome) return // signed out between the check and here
+    setResult(
+      outcome.error
+        ? { ok: false, text: outcome.error }
+        : { ok: true, text: 'Thanks! Your photo is in review. You’ll earn your reward once the community confirms it.' },
+    )
   }
 
   const inputClass =
@@ -97,9 +127,21 @@ export function UploadForm() {
 
   return (
     <form onSubmit={handleSubmit} noValidate className="mt-4 space-y-6">
-      {justSubmitted && (
-        <p role="status" className="rounded-2xl bg-[var(--tag-green-bg)] px-4 py-3 text-sm">
-          🎉 Thanks! Your photo is in review. You’ll earn your reward once the community confirms it.
+      {uploading && (
+        <p role="status" className="flex items-center gap-2 rounded-2xl bg-surface px-4 py-3 text-sm ring-1 ring-border">
+          <Loader2 className="size-4 animate-spin" aria-hidden="true" />
+          Sending your photo…
+        </p>
+      )}
+
+      {result && !uploading && (
+        <p
+          role="status"
+          className="rounded-2xl px-4 py-3 text-sm"
+          style={{ background: result.ok ? 'var(--tag-green-bg)' : 'var(--tag-yellow-bg)' }}
+        >
+          {result.ok ? '🎉 ' : ''}
+          {result.text}
         </p>
       )}
 
@@ -274,8 +316,10 @@ export function UploadForm() {
 
       <button
         type="submit"
-        className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-full bg-primary px-6 text-[15px] font-medium text-primary-foreground shadow-[0_2px_8px_-2px_rgb(11_107_203/0.35)] transition hover:bg-primary-hover sm:w-auto"
+        disabled={uploading}
+        className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-full bg-primary px-6 text-[15px] font-medium text-primary-foreground shadow-[0_2px_8px_-2px_rgb(11_107_203/0.35)] transition hover:bg-primary-hover disabled:opacity-60 sm:w-auto"
       >
+        {uploading && <Loader2 className="size-4 animate-spin" aria-hidden="true" />}
         {userId ? 'Send for review' : 'Log in to upload'}
       </button>
     </form>

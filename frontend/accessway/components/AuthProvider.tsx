@@ -23,7 +23,7 @@ export const AuthContext = createContext<AuthContextValue | null>(null)
  */
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
-  const [loading, setLoading] = useState(CURRENT_USER_URL !== '')
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     if (!CURRENT_USER_URL) return

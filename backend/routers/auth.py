@@ -7,7 +7,6 @@ import jwt
 import datetime
 import secrets
 import urllib.parse
-from urllib.parse import urlparse
 
 
 router = APIRouter(prefix='/auth', tags=['auth'])
@@ -21,11 +20,11 @@ JWT_SECRET = env.JWT_SECRET
 returnUrl = "https://api.accessway.tech"
 
 REDIRECT_URI = getattr(env, 'GOOGLE_REDIRECT_URI', returnUrl + '/auth/callback')
-FRONTEND_URL = returnUrl
+FRONTEND_URL = "https://www.accessway.tech" 
 
 AUTH_URL = 'https://accounts.google.com/o/oauth2/v2/auth'
 TOKEN_URL = 'https://oauth2.googleapis.com/token'
-USERINFO_URL = 'https://www.googleapis.com/oauth2/v2/userinfo'
+USERINFO_URL = 'https://openidconnect.googleapis.com/v1/userinfo'
 
 
 
@@ -48,7 +47,7 @@ def login():
     }
     auth_url = f"{AUTH_URL}?{urllib.parse.urlencode(params)}"
     response = RedirectResponse(auth_url)
-    response.set_cookie(key='oauth_state', value=state, httponly=True, secure=True, samesite='lax', domain=urlparse(FRONTEND_URL).netloc)
+    response.set_cookie(key='oauth_state', value=state, httponly=True, secure=True, samesite='lax')
     return response
 
 
@@ -90,6 +89,8 @@ async def callback(request: Request):
     user_id = user_info.get('sub')
     email = user_info.get('email')
     name = user_info.get('name')
+    if not isinstance(user_id, str):
+        raise HTTPException(status_code=502, detail="Google user info did not include a valid subject")
 
     # Generate JWT
     payload = {
@@ -102,9 +103,9 @@ async def callback(request: Request):
 
     # Set JWT in cookie
     response = RedirectResponse(url=FRONTEND_URL)
-    response.set_cookie(key='jwt', value=token, httponly=True, secure=True, samesite='lax', domain=urlparse(FRONTEND_URL).netloc)
-    response.set_cookie(key='user_id', value=str(user_id), httponly=True, secure=True, samesite='lax', domain=urlparse(FRONTEND_URL).netloc)
-    response.set_cookie(key='username', value=str(name), httponly=True, secure=True, samesite='lax', domain=urlparse(FRONTEND_URL).netloc)
+    response.set_cookie(key='jwt', value=token, httponly=True, secure=True, samesite='lax')
+    response.set_cookie(key='user_id', value=str(user_id), httponly=True, secure=True, samesite='lax')
+    response.set_cookie(key='username', value=str(name), httponly=True, secure=True, samesite='lax')
     return response
 
 
@@ -113,18 +114,40 @@ def get_profile(request: Request):
     user_id = request.cookies.get("user_id")
     username = request.cookies.get("username")
     verify_token(request)
-    return user_id, username
+    return [user_id, username]
 
-# A utility for debugging, specifically to check the contents and validility of the JWT
-@router.get("/verify-token")
-def verify_token(request: Request):
+
+@router.get("/me")
+def get_current_user(request: Request):
+    payload = decode_token(request)
+    return {
+        "id": payload.get("sub"),
+        "name": payload.get("name"),
+        "email": payload.get("email"),
+    }
+
+
+@router.post("/logout")
+def logout():
+    response = JSONResponse({"message": "Logged out"})
+    for cookie_name in ("jwt", "user_id", "username"):
+        response.delete_cookie(key=cookie_name, path="/")
+    return response
+
+
+def decode_token(request: Request):
     token = request.cookies.get('jwt')
     if not token:
         raise HTTPException(status_code=401, detail="No token found")
     try:
-        decoded = jwt.decode(token, JWT_SECRET, algorithms=['HS256'])
-        return JSONResponse(content=decoded)
+        return jwt.decode(token, JWT_SECRET, algorithms=['HS256'])
     except jwt.ExpiredSignatureError:
         raise HTTPException(status_code=401, detail="Token has expired")
     except jwt.InvalidTokenError:
         raise HTTPException(status_code=401, detail="Invalid token")
+
+
+# A utility for debugging, specifically to check the contents and validility of the JWT
+@router.get("/verify-token")
+def verify_token(request: Request):
+    return JSONResponse(content=decode_token(request))

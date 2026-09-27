@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "check:api": "node scripts/check-accessway-api.mjs"
   },
   "dependencies": {
     "leaflet": "^1.9.4",
