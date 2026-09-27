@@ -6,8 +6,8 @@ export const GOOGLE_LOGIN_URL = 'https://api.accessway.tech/auth/login'
  * origin your backend needs CORS with `allow_credentials=True` and this app's
  * origin allowed. e.g. 'http://localhost:6767/auth/me'
  */
-export const CURRENT_USER_URL = 'https://api.accessway.tech/auth/me'
-export const LOGOUT_URL = 'https://api.accessway.tech/auth/logout'
+export const CURRENT_USER_URL: string = 'https://api.accessway.tech/auth/me'
+export const LOGOUT_URL: string = 'https://api.accessway.tech/auth/logout'
 
 /** The full address the Google button goes to, carrying where to come back to. */
 export function googleLoginHref(next: string): string {

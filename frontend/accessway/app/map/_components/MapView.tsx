@@ -13,6 +13,7 @@ import { UserMenu } from '@/components/Header/UserMenu'
 import { FEATURE_TYPES } from '@/data/FeatureTypes'
 import { useAuth } from '@/hooks/useAuth'
 import { useContributions } from '@/hooks/useContributions'
+import { useCommunityFeatures } from '@/hooks/useCommunityFeatures'
 import { useFeatures } from '@/hooks/useFeatures'
 import { useGeolocation } from '@/hooks/useGeolocation'
 import { useWalkable } from '@/hooks/useWalkable'
@@ -70,15 +71,24 @@ export function MapView({ features: initialFeatures, notice = null }: MapViewPro
   const origin: LatLng | null = myLocation
 
   const { features: surveyed, loading: loadingArea, error: areaError, tooFarOut, noBackend } = useFeatures(initialFeatures, bbox, zoom)
+  // What people have added, from the AccessWay API. Confirmed ones only — a
+  // photo still in review is somebody's claim, not yet a place to rely on.
+  const { features: community, unavailable: communityDown } = useCommunityFeatures(bbox, zoom)
   const { contributions } = useContributions()
 
-  // Approved community photos sit alongside surveyed data on the same map.
+  // Confirmed community photos sit alongside surveyed data on the same map.
   // OpenStreetMap has a wheelchair tag on under 2% of buildings around here, so
   // what people add is not a nice-to-have — it is most of the eventual map.
-  const features = useMemo(
-    () => [...surveyed, ...contributions.filter((c) => c.status === 'approved').map(toFeature)],
-    [surveyed, contributions],
-  )
+  const features = useMemo(() => {
+    // A photo uploaded in this session is already on the API, so once the area
+    // reloads it arrives twice — once from the server, once from local state.
+    const fromServer = new Set(community.map((f) => f.featureId))
+    const mine = contributions
+      .filter((c) => c.status === 'approved' && !(c.featureId && fromServer.has(c.featureId)))
+      .map(toFeature)
+
+    return [...surveyed, ...community, ...mine]
+  }, [surveyed, community, contributions])
   const { paths, kerbs, loading: loadingWalkable } = useWalkable(showWalkable, bbox, zoom)
   // Bias search toward the user when we know where they are, otherwise the map.
   const { results, loading: searching, error: searchError, offline: searchOffline } = usePlaceSearch(query, bbox, origin)
@@ -406,6 +416,15 @@ export function MapView({ features: initialFeatures, notice = null }: MapViewPro
                   )}
 
                   {(areaError || backendMissing) && !loadingArea && <ApiContract />}
+
+                  {/* Said plainly and once: nothing people added is showing, and
+                      why. The alternative is a map that just looks empty. */}
+                  {communityDown && !tooFarOut && (
+                    <p className="mx-1 mt-1 rounded-2xl bg-surface px-3 py-2.5 text-xs leading-relaxed text-muted ring-1 ring-border">
+                      Community reports aren’t loading — the AccessWay API isn’t answering yet. Everything below
+                      comes from the survey data.
+                    </p>
+                  )}
                   {nearby.length === 0 && (
                     <p className="px-3 py-4 text-sm text-muted">Nothing recorded in this area yet.</p>
                   )}
