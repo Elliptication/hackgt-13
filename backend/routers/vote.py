@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException, status
 from db import get_supabase
-from routes.features import update_verification_status
+from routers.features import update_verification_status
 
 router = APIRouter(prefix='/vote', tags=['features'])
 
