@@ -1,7 +1,6 @@
 import { ArrowRight, Camera, Coins, MapPinned, Search, Users } from 'lucide-react'
 
 import { Button } from '@/components/Button'
-import { REWARD_CENTS, VOTES_TO_APPROVE } from '@/lib/constants'
 
 /**
  * The page leads with who it is for, and what they get.
@@ -26,22 +25,22 @@ const STEPS = [
     icon: Search,
     color: 'var(--tag-blue)',
     bg: 'var(--tag-blue-bg)',
-    title: 'Say where you want to go',
-    body: 'Search any place. We show whether you can get in, or admit that nobody has checked.',
+    title: 'Find where you want to go',
+    body: 'Search any place and see whether it’s accessible.',
   },
   {
     icon: MapPinned,
     color: 'var(--tag-green)',
     bg: 'var(--tag-green-bg)',
-    title: 'Get a route without stairs',
-    body: 'Directions along footways, avoiding steps and high curbs — and we name what is on the way.',
+    title: 'Know how to get there',
+    body: 'See ramps, elevators, accessible entrances, restrooms, and wheelchair-friendly routes.',
   },
   {
     icon: Users,
     color: 'var(--tag-orange)',
     bg: 'var(--tag-orange-bg)',
-    title: 'Fill in a blank',
-    body: `Add a photo of an entrance. ${VOTES_TO_APPROVE} people confirm it, and it is on the map for everyone.`,
+    title: 'Help make the world easier to access',
+    body: 'Anyone can upload or verify accessibility information to help wheelchair users get where they need to go.',
   },
 ]
 
@@ -93,8 +92,8 @@ export function Hero() {
 
       <section id="how-it-works" className="scroll-mt-20">
         <div className="mx-auto max-w-5xl px-6 py-20">
-          <h2 className="text-center text-3xl font-bold tracking-tight">How it works</h2>
-          <p className="mt-2 text-center text-muted">No account needed to look. One photo to help.</p>
+          <h2 className="text-center text-3xl font-bold tracking-tight">How AccessWay works</h2>
+          <p className="mt-2 text-center text-muted">Built for wheelchair users. Powered by the community.</p>
           <ol className="mt-10 grid gap-5 sm:grid-cols-3">
             {STEPS.map(({ icon: Icon, color, bg, title, body }) => (
               <li
@@ -118,10 +117,10 @@ export function Hero() {
             <Camera className="size-7 text-[var(--tag-yellow)]" aria-hidden="true" />
           </span>
           <div className="flex-1">
-            <h2 className="text-2xl font-bold tracking-tight">The map is only as good as we make it</h2>
+            <h2 className="text-2xl font-bold tracking-tight">One photo can help someone get there.</h2>
             <p className="mt-1 text-muted">
-              Photograph one entrance on your way past. {VOTES_TO_APPROVE} neighbours confirm it, it goes live
-              for everyone, and you earn {REWARD_CENTS}¢ for the trouble.
+              See a ramp, elevator, accessible entrance, or barrier? Add it to AccessWay and help wheelchair
+              users move with more confidence.
             </p>
           </div>
           <div className="flex flex-wrap justify-center gap-2">
