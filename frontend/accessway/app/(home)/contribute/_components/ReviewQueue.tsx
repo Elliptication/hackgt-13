@@ -1,6 +1,6 @@
 'use client'
 
-import { Check, ImageOff, LoaderCircle, PartyPopper, SkipForward, X } from 'lucide-react'
+import { Check, CheckCircle2, ImageOff, LoaderCircle, PartyPopper, SkipForward, X } from 'lucide-react'
 import { useMemo, useState } from 'react'
 
 import { Button } from '@/components/Button'
@@ -44,6 +44,7 @@ export function ReviewQueue() {
     unavailable,
     bucketUnconfigured,
     voteError,
+    pending,
     vote,
     skip,
     refresh,
@@ -54,13 +55,21 @@ export function ReviewQueue() {
   async function cast(item: ReviewItem, v: Vote) {
     // Signed out? This sends them to log in and brings them back here after.
     if (!requireAuth() || !userId) return
-    setLastVote(v)
-    await vote(item, v, userId)
+
+    // Nothing is claimed until the API agrees. This used to announce "Thanks,
+    // confirmed!" before the request was even sent, so a vote that was refused
+    // still read as counted — next to the error explaining it had not been.
+    const counted = await vote(item, v, userId)
+    if (counted) setLastVote(v)
   }
 
   // Only known once `/features` answers. Until then the card asks the neutral
   // question rather than guessing at a type it does not have.
   const kind = current?.type ? FEATURE_TYPES[current.type] : null
+
+  /** This card's vote is in flight. Compared by id, not a bare boolean, so a
+      request left over from the previous card cannot freeze this one. */
+  const sending = pending !== null && pending === current?.contributionId
 
   return (
     <div className="mx-auto max-w-2xl">
@@ -70,13 +79,25 @@ export function ReviewQueue() {
           Help check what people have added. Enough confirmations and it goes on the map for everyone.
         </p>
         <p className="mt-3 text-sm text-muted" aria-live="polite">
-          {lastVote && (
-            <span className="mr-1">{lastVote === 'confirm' ? 'Thanks, confirmed!' : 'Thanks, flagged.'}</span>
-          )}
           {reviewed > 0 && `You’ve reviewed ${reviewed}. `}
           {queue.length > 0 && `${queue.length} left to review.`}
         </p>
       </header>
+
+      {/* Success is its own banner rather than a grey aside, because casting a
+          vote is the one thing this page exists for and the old line was easy
+          to miss entirely. Only ever shown after the API accepted it. */}
+      {lastVote && !voteError && (
+        <p
+          role="status"
+          className="mt-6 flex items-center justify-center gap-2 rounded-2xl bg-[var(--tag-green-bg)] px-4 py-3 text-sm font-medium"
+        >
+          <CheckCircle2 className="size-4 shrink-0 text-[var(--tag-green)]" aria-hidden="true" />
+          {lastVote === 'confirm'
+            ? 'Thanks — your confirmation was counted.'
+            : 'Thanks — you flagged this one as wrong.'}
+        </p>
+      )}
 
       {loading && !current && (
         <p role="status" className="mt-10 flex items-center justify-center gap-2 text-sm text-muted">
@@ -186,25 +207,55 @@ export function ReviewQueue() {
                 <button
                   type="button"
                   onClick={() => cast(current, 'reject')}
-                  className="inline-flex h-12 items-center justify-center gap-2 rounded-full bg-[var(--tag-red-bg)] font-medium transition hover:brightness-[0.97] motion-safe:active:scale-[0.98]"
+                  disabled={sending}
+                  aria-busy={sending}
+                  className="inline-flex h-12 items-center justify-center gap-2 rounded-full bg-[var(--tag-red-bg)] font-medium transition hover:brightness-[0.97] disabled:opacity-60 motion-safe:active:scale-[0.98] disabled:motion-safe:active:scale-100"
                 >
-                  <X className="size-5 text-[var(--tag-red)]" aria-hidden="true" /> Not right
+                  {sending ? (
+                    <LoaderCircle className="size-5 motion-safe:animate-spin" aria-hidden="true" />
+                  ) : (
+                    <X className="size-5 text-[var(--tag-red)]" aria-hidden="true" />
+                  )}
+                  Not right
                 </button>
                 <button
                   type="button"
                   onClick={() => cast(current, 'confirm')}
-                  className="inline-flex h-12 items-center justify-center gap-2 rounded-full bg-[var(--tag-green-bg)] font-medium transition hover:brightness-[0.97] motion-safe:active:scale-[0.98]"
+                  disabled={sending}
+                  aria-busy={sending}
+                  className="inline-flex h-12 items-center justify-center gap-2 rounded-full bg-[var(--tag-green-bg)] font-medium transition hover:brightness-[0.97] disabled:opacity-60 motion-safe:active:scale-[0.98] disabled:motion-safe:active:scale-100"
                 >
-                  <Check className="size-5 text-[var(--tag-green)]" aria-hidden="true" /> Looks right
+                  {sending ? (
+                    <LoaderCircle className="size-5 motion-safe:animate-spin" aria-hidden="true" />
+                  ) : (
+                    <Check className="size-5 text-[var(--tag-green)]" aria-hidden="true" />
+                  )}
+                  Looks right
                 </button>
               </div>
             ) : (
               <LoginButton className="mt-3 w-full">Log in to vote</LoginButton>
             )}
+
+            {/* A vote is allowed a 20 second budget and three attempts, so
+                without this the buttons sit silent for up to a minute and the
+                click reads as having done nothing at all. */}
+            {sending && (
+              <p role="status" className="mt-2 text-center text-xs text-muted">
+                Sending your vote…
+              </p>
+            )}
+
             <button
               type="button"
-              onClick={() => skip(current)}
-              className="mx-auto mt-3 flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm text-muted hover:bg-hover hover:text-foreground"
+              onClick={() => {
+                // Otherwise the green "your vote was counted" banner stays up
+                // over a card nobody voted on.
+                setLastVote(null)
+                skip(current)
+              }}
+              disabled={sending}
+              className="mx-auto mt-3 flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm text-muted hover:bg-hover hover:text-foreground disabled:opacity-60"
             >
               <SkipForward className="size-3.5" aria-hidden="true" /> Not sure, skip
             </button>

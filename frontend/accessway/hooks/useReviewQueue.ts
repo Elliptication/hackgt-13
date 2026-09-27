@@ -103,6 +103,15 @@ export function useReviewQueue({
   /** Judged or skipped in this session: gone from the queue, either way. */
   const [settled, setSettled] = useState<Set<string>>(() => new Set())
   const [voteError, setVoteError] = useState<string | null>(null)
+  /**
+   * The contribution whose vote is in flight.
+   *
+   * A vote gets a 20 second budget and is retried up to three times, so a
+   * failing one can take the better part of a minute. Without this the button
+   * looks inert for all of it, and the only visible result is the card coming
+   * back long after the click — which reads as the click having done nothing.
+   */
+  const [pending, setPending] = useState<string | null>(null)
 
   const at = centre ?? DEFAULT_CENTRE
   // Quantised, so a metre of GPS drift is not a refetch.
@@ -194,30 +203,35 @@ export function useReviewQueue({
   }, [photos, features, settled, exclude, viewerId])
 
   /**
-   * Cast a vote and drop the card.
+   * Cast a vote, and drop the card once it has actually been counted.
    *
-   * Removed before the request settles: the next photo should be on screen
-   * immediately. If the API refuses it the card comes back, because a vote that
-   * was not counted must not look like one that was.
+   * The card used to be removed the moment the button was pressed, on the
+   * reasoning that the next photo should appear immediately. That turned out to
+   * be the wrong trade. On the last card in the queue it read as: the card
+   * vanishes, "All caught up!" appears, and then the card comes back when the
+   * request fails — which is indistinguishable from the click having done
+   * nothing, and is worse the slower the network is.
+   *
+   * So the card now stays put with a spinner and leaves only on success. The
+   * wait is visible instead of hidden, and what is on screen is always the truth
+   * about what the server has been told.
    */
   const vote = useCallback(async (item: ReviewItem, choice: Vote, userId: string) => {
-    setSettled((s) => new Set(s).add(item.contributionId))
     setVoteError(null)
+    setPending(item.contributionId)
     try {
       await accessway.vote({
         contributionId: item.contributionId,
         userId,
         upvote: choice === 'confirm',
       })
+      setSettled((s) => new Set(s).add(item.contributionId))
       return true
     } catch (err) {
-      setSettled((s) => {
-        const next = new Set(s)
-        next.delete(item.contributionId)
-        return next
-      })
       setVoteError(voteMessage(err))
       return false
+    } finally {
+      setPending(null)
     }
   }, [])
 
@@ -246,6 +260,8 @@ export function useReviewQueue({
     /** Photos exist but NEXT_PUBLIC_SUPABASE_URL is unset, so none can be shown. */
     bucketUnconfigured,
     voteError,
+    /** Contribution id whose vote is still in flight, if any. */
+    pending,
     vote,
     skip,
     refresh,
