@@ -2,7 +2,7 @@
 
 import L from 'leaflet'
 import { renderToStaticMarkup } from 'react-dom/server'
-import { useMemo } from 'react'
+import { memo, useMemo } from 'react'
 import { Marker, Popup } from 'react-leaflet'
 
 import { FEATURE_TYPES } from '@/data/FeatureTypes'
@@ -86,7 +86,14 @@ type Props = {
   photos?: { id: string; photoUrl?: string; description?: string; name?: string }[]
 }
 
-export function FeatureMarker({ feature, selected, onSelect, photos = [] }: Props) {
+const NO_PHOTOS: NonNullable<Props['photos']> = []
+
+/**
+ * Memoised: when new data lands or the map moves, only markers whose own props
+ * changed re-render. Without this, every marker on the map re-rendered (and
+ * Leaflet re-bound its handlers) each time anything at all changed.
+ */
+export const FeatureMarker = memo(function FeatureMarker({ feature, selected, onSelect, photos = NO_PHOTOS }: Props) {
   const issue = feature.status === 'reported-issue'
   const shots = [
     ...(feature.photoUrl ? [{ id: feature.id, photoUrl: feature.photoUrl, description: feature.description }] : []),
@@ -99,6 +106,7 @@ export function FeatureMarker({ feature, selected, onSelect, photos = [] }: Prop
     [feature.type, selected, issue, hasPhoto],
   )
   const { label } = FEATURE_TYPES[feature.type]
+  const eventHandlers = useMemo(() => ({ click: () => onSelect(feature.id) }), [onSelect, feature.id])
 
   return (
     <Marker
@@ -107,7 +115,7 @@ export function FeatureMarker({ feature, selected, onSelect, photos = [] }: Prop
       // Screen readers get the name, not an unlabelled graphic.
       alt={`${feature.name} — ${label}`}
       keyboard
-      eventHandlers={{ click: () => onSelect(feature.id) }}
+      eventHandlers={eventHandlers}
     >
       <Popup minWidth={shots.length ? 232 : 180}>
         {shots.length > 0 && (
@@ -133,4 +141,4 @@ export function FeatureMarker({ feature, selected, onSelect, photos = [] }: Prop
       </Popup>
     </Marker>
   )
-}
+})

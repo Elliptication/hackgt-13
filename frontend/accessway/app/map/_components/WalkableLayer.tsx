@@ -1,8 +1,12 @@
 'use client'
 
-import { CircleMarker, Polyline, Tooltip } from 'react-leaflet'
+import L from 'leaflet'
+import { useEffect, useMemo, useRef } from 'react'
+import { useMap } from 'react-leaflet'
 
 import type { KerbPoint, PathSegment } from '@/types/paths'
+
+import { sharedCanvas } from './sharedCanvas'
 
 /**
  * The sidewalk network, coloured by whether a wheelchair can actually use it.
@@ -13,6 +17,16 @@ import type { KerbPoint, PathSegment } from '@/types/paths'
  *
  * Untagged stretches are drawn faint rather than hidden. "Nobody has surveyed
  * this" is real information; drawing nothing would imply the way is clear.
+ *
+ * Performance — a few neighbourhoods is thousands of segments and curb dots:
+ *  - They're all painted onto one shared canvas (see sharedCanvas.ts), not
+ *    created as thousands of SVG elements.
+ *  - They're handed to Leaflet directly rather than rendered as React
+ *    components. With React in between, every pan re-reconciled thousands of
+ *    components that draw nothing themselves, and that was most of the lag.
+ *  - Each segment is created once. When a new area loads, only the new ones
+ *    are added.
+ *  - Tooltips are built only when one is actually hovered.
  */
 
 const PATH_STYLE = {
@@ -29,11 +43,11 @@ const KERB_STYLE = {
   unknown: { color: 'var(--subtle)', label: 'Curb not surveyed' },
 } as const
 
-/** SVG paint attributes can't read CSS variables, so resolve them to hex first. */
-function resolve(value: string) {
+/** Canvas can't read CSS variables, so resolve them to real colours first. */
+function resolve(value: string, root: CSSStyleDeclaration) {
   const match = value.match(/^var\((--[^)]+)\)$/)
   if (!match) return value
-  return getComputedStyle(document.documentElement).getPropertyValue(match[1]).trim() || '#787774'
+  return root.getPropertyValue(match[1]).trim() || '#787774'
 }
 
 function details(path: PathSegment) {
@@ -45,53 +59,94 @@ function details(path: PathSegment) {
   ].filter(Boolean) as string[]
 }
 
+/** Tooltip content as DOM nodes (textContent, so data can never inject HTML). */
+function tooltip(label: string, lines: string[] = []) {
+  const el = document.createElement('div')
+  const strong = document.createElement('strong')
+  strong.textContent = label
+  el.append(strong)
+  if (lines.length > 0) {
+    const small = document.createElement('div')
+    small.className = 'text-xs'
+    small.textContent = lines.join(' · ')
+    el.append(small)
+  }
+  return el
+}
+
 export function WalkableLayer({ paths, kerbs }: { paths: PathSegment[]; kerbs: KerbPoint[] }) {
-  return (
-    <>
-      {paths.map((path) => {
-        const style = PATH_STYLE[path.access]
-        const lines = details(path)
+  const map = useMap()
 
-        return (
-          <Polyline
-            key={path.id}
-            // GeoJSON is [lng, lat]; Leaflet wants [lat, lng].
-            positions={path.geometry.coordinates.map(([lng, lat]) => [lat, lng] as [number, number])}
-            pathOptions={{
-              color: resolve(style.color),
-              weight: style.weight,
-              opacity: style.opacity,
-              // Dashes read as "not this way" even for a colour-blind viewer.
-              dashArray: path.access === 'no' ? '6 5' : undefined,
-              lineCap: 'round',
-            }}
-          >
-            <Tooltip sticky>
-              <strong>{style.label}</strong>
-              {lines.length > 0 && <div className="text-xs">{lines.join(' · ')}</div>}
-            </Tooltip>
-          </Polyline>
-        )
-      })}
+  // The shared canvas, and one group holding every line and dot.
+  const renderer = useMemo(() => sharedCanvas(map), [map])
+  const group = useMemo(() => L.layerGroup(), [])
+  const drawn = useRef(new Map<string, L.Layer>())
 
-      {kerbs.map((kerb) => {
-        const style = KERB_STYLE[kerb.kerb]
-        return (
-          <CircleMarker
-            key={kerb.id}
-            center={[kerb.lat, kerb.lng]}
-            radius={kerb.kerb === 'raised' ? 5 : 4}
-            pathOptions={{
-              color: '#ffffff',
-              weight: 1.5,
-              fillColor: resolve(style.color),
-              fillOpacity: kerb.kerb === 'unknown' ? 0.4 : 1,
-            }}
-          >
-            <Tooltip>{style.label}</Tooltip>
-          </CircleMarker>
-        )
-      })}
-    </>
-  )
+  useEffect(() => {
+    group.addTo(map)
+    return () => {
+      group.remove()
+    }
+  }, [group, map])
+
+  // Add what's new, remove what's gone. Existing shapes are left untouched.
+  useEffect(() => {
+    const root = getComputedStyle(document.documentElement)
+    const current = new Set<string>()
+
+    for (const path of paths) {
+      const key = `p:${path.id}`
+      current.add(key)
+      if (drawn.current.has(key)) continue
+
+      const style = PATH_STYLE[path.access]
+      const layer = L.polyline(
+        // GeoJSON is [lng, lat]; Leaflet wants [lat, lng].
+        path.geometry.coordinates.map(([lng, lat]) => [lat, lng] as [number, number]),
+        {
+          renderer,
+          color: resolve(style.color, root),
+          weight: style.weight,
+          opacity: style.opacity,
+          // Dashes read as "not this way" even for a colour-blind viewer.
+          dashArray: path.access === 'no' ? '6 5' : undefined,
+          lineCap: 'round',
+        },
+      ).bindTooltip(() => tooltip(style.label, details(path)), { sticky: true })
+
+      group.addLayer(layer)
+      // Under the feature dots that share this canvas.
+      layer.bringToBack()
+      drawn.current.set(key, layer)
+    }
+
+    for (const kerb of kerbs) {
+      const key = `k:${kerb.id}`
+      current.add(key)
+      if (drawn.current.has(key)) continue
+
+      const style = KERB_STYLE[kerb.kerb]
+      const layer = L.circleMarker([kerb.lat, kerb.lng], {
+        renderer,
+        radius: kerb.kerb === 'raised' ? 5 : 4,
+        color: '#ffffff',
+        weight: 1.5,
+        fillColor: resolve(style.color, root),
+        fillOpacity: kerb.kerb === 'unknown' ? 0.4 : 1,
+      }).bindTooltip(() => tooltip(style.label))
+
+      group.addLayer(layer)
+      layer.bringToBack()
+      drawn.current.set(key, layer)
+    }
+
+    for (const [key, layer] of drawn.current) {
+      if (!current.has(key)) {
+        group.removeLayer(layer)
+        drawn.current.delete(key)
+      }
+    }
+  }, [paths, kerbs, group, renderer])
+
+  return null
 }
