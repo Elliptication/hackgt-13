@@ -146,6 +146,13 @@ type Call = {
  * Parsing straight to JSON would turn the placeholder worker's "Hello world"
  * into an unexplained syntax error at byte 1. Reading the text means we can say
  * what actually came back instead.
+ *
+ * Cookies are sent with every call. The session lives in a cookie set by
+ * api.accessway.tech, and that is a different origin from this app, so the
+ * browser withholds it unless asked — which turns anything behind
+ * `Depends(get_current_user)` into a 401 while /auth/me still says you are
+ * signed in. The backend already allows it (`allow_credentials=True` over an
+ * explicit origin list, backend/app.py).
  */
 async function request<T>(path: string, call: Call = {}): Promise<T> {
   const { budgetMs = BUDGET_MS.read, attempts = ATTEMPTS.idempotent, signal, ...init } = call
@@ -159,7 +166,7 @@ async function request<T>(path: string, call: Call = {}): Promise<T> {
 
     const deadline = withDeadline(signal, budgetMs)
     try {
-      const res = await fetch(url, { ...init, signal: deadline.signal })
+      const res = await fetch(url, { credentials: 'include', ...init, signal: deadline.signal })
       const body = await res.text()
 
       if (!res.ok) {
