@@ -3,5 +3,9 @@
 	"main": "worker.py",
 	// Set this to today's date
 	"compatibility_date": "2026-09-07",
-	"compatibility_flags": ["python_workers"]
+	"compatibility_flags": ["python_workers"],
+	"vars": {
+    	"GOOGLE_CLIENT_ID": "638406818272-qkfsvgr6hrnlhiqlo89pbnf5ndgvhqjh.apps.googleusercontent.com",
+    	"SUPABASE_URL": "https://ztayzyuyfmurhtkwiohq.supabase.co"
+  	},
 }
