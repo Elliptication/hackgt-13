@@ -10,9 +10,9 @@ from routers import features, contributions, vote
 
 app = fastapi.FastAPI()
 
-#fix once we know what origins we want
 origins = [
-    "*",
+    "https://accessway.tech",
+    "http://localhost:3000",
 ]
 
 app.add_middleware(

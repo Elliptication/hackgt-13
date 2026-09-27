@@ -21,7 +21,7 @@ JWT_SECRET = env.JWT_SECRET
 returnUrl = "https://api.accessway.tech"
 
 REDIRECT_URI = getattr(env, 'GOOGLE_REDIRECT_URI', returnUrl + '/auth/callback')
-FRONTEND_URL = returnUrl
+FRONTEND_URL = "https://www.accessway.tech" 
 
 AUTH_URL = 'https://accounts.google.com/o/oauth2/v2/auth'
 TOKEN_URL = 'https://oauth2.googleapis.com/token'
@@ -115,16 +115,39 @@ def get_profile(request: Request):
     verify_token(request)
     return user_id, username
 
-# A utility for debugging, specifically to check the contents and validility of the JWT
-@router.get("/verify-token")
-def verify_token(request: Request):
+
+@router.get("/me")
+def get_current_user(request: Request):
+    payload = decode_token(request)
+    return {
+        "id": payload.get("sub"),
+        "name": payload.get("name"),
+        "email": payload.get("email"),
+    }
+
+
+@router.post("/logout")
+def logout():
+    response = JSONResponse({"message": "Logged out"})
+    cookie_domain = urlparse(FRONTEND_URL).netloc
+    for cookie_name in ("jwt", "user_id", "username"):
+        response.delete_cookie(key=cookie_name, domain=cookie_domain, path="/")
+    return response
+
+
+def decode_token(request: Request):
     token = request.cookies.get('jwt')
     if not token:
         raise HTTPException(status_code=401, detail="No token found")
     try:
-        decoded = jwt.decode(token, JWT_SECRET, algorithms=['HS256'])
-        return JSONResponse(content=decoded)
+        return jwt.decode(token, JWT_SECRET, algorithms=['HS256'])
     except jwt.ExpiredSignatureError:
         raise HTTPException(status_code=401, detail="Token has expired")
     except jwt.InvalidTokenError:
         raise HTTPException(status_code=401, detail="Invalid token")
+
+
+# A utility for debugging, specifically to check the contents and validility of the JWT
+@router.get("/verify-token")
+def verify_token(request: Request):
+    return JSONResponse(content=decode_token(request))
