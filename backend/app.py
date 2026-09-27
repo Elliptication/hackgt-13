@@ -6,8 +6,6 @@ from fastapi import APIRouter as base_router
 from fastapi.middleware.cors import CORSMiddleware
 from routers import features, contributions, vote
 
-
-
 app = fastapi.FastAPI()
 
 origins = [
@@ -35,8 +33,3 @@ def root():
 app.include_router(features.router)
 app.include_router(contributions.router)
 app.include_router(vote.router)
-
-# if __name__ == '__main__':
-#     import uvicorn
-#     uvicorn.run(app, host='0.0.0.0', port=6767)
-

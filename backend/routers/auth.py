@@ -114,7 +114,7 @@ def get_profile(request: Request):
     user_id = request.cookies.get("user_id")
     username = request.cookies.get("username")
     verify_token(request)
-    return user_id, username
+    return [user_id, username]
 
 
 @router.get("/me")
