@@ -4,7 +4,7 @@ from pydantic import BaseModel
 # from auth import router as auth_router
 from fastapi import APIRouter as base_router
 from fastapi.middleware.cors import CORSMiddleware
-from routers import features
+from routers import features, contributions, vote
 
 
 
@@ -34,6 +34,8 @@ def root():
     return "hello world!"
 # app.include(auth.router)
 app.include_router(features.router)
+app.include_router(contributions.router)
+app.include_router(vote.router)
 
 if __name__ == '__main__':
     import uvicorn
