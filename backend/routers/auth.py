@@ -24,7 +24,7 @@ FRONTEND_URL = "https://www.accessway.tech"
 
 AUTH_URL = 'https://accounts.google.com/o/oauth2/v2/auth'
 TOKEN_URL = 'https://oauth2.googleapis.com/token'
-USERINFO_URL = 'https://www.googleapis.com/oauth2/v2/userinfo'
+USERINFO_URL = 'https://openidconnect.googleapis.com/v1/userinfo'
 
 
 
@@ -89,6 +89,8 @@ async def callback(request: Request):
     user_id = user_info.get('sub')
     email = user_info.get('email')
     name = user_info.get('name')
+    if not isinstance(user_id, str):
+        raise HTTPException(status_code=502, detail="Google user info did not include a valid subject")
 
     # Generate JWT
     payload = {
