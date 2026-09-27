@@ -150,7 +150,17 @@ async def classify_contribution(contribution_id, current_user: dict = Depends(ge
 
     f_type = process_image(image_path)
 
-    return f_type
+    if f_type == "none":
+        response = (
+            supabase.table('contributions')
+            .delete()
+            .eq('id', contribution_id)
+            .execute()
+        )
+        return False
+
+    return True
+    
 
 
 
