@@ -39,9 +39,8 @@ export type BackendFeature = {
    * geometry instead. See lib/geo/wkb.ts.
    */
   location?: string | null
-  /** `GET /features/{id}` only. Null until a name is stored at upload. */
-  net_votes?: number | null
-  total_votes?: number | null
+  /** Free text, when the contributor gave any. */
+  description?: string | null
   contribution_id: string | number | null
   /** Yes votes minus no votes. Missing on older deploys, so optional. */
   net_votes?: number | null

@@ -15,6 +15,7 @@ import { useAuth } from '@/hooks/useAuth'
 import { useContributions } from '@/hooks/useContributions'
 import { useCommunityFeatures } from '@/hooks/useCommunityFeatures'
 import { useCommunityPhotos } from '@/hooks/useCommunityPhotos'
+import { placed } from '@/lib/api/accessway'
 import { useFeatures } from '@/hooks/useFeatures'
 import { useGeolocation } from '@/hooks/useGeolocation'
 import { useWalkable } from '@/hooks/useWalkable'
@@ -81,14 +82,23 @@ export function MapView({ notice = null }: MapViewProps) {
     // A photo uploaded in this session is already on the API, so once the area
     // reloads it arrives twice — once from the server, once from local state.
     const fromServer = new Set([...community, ...reported].map((f) => f.featureId))
+    // A feature the API can't place (no coordinates stored) can't be drawn.
+    const onMap = [...community, ...reported].filter(placed)
     const mine = contributions
       .filter((c) => c.status !== 'rejected' && !(c.featureId && fromServer.has(c.featureId)))
       .map(toFeature)
 
     // Unconfirmed reports are on the map too, drawn faint and filling in as
     // people vote yes (see reportOpacity). Rejected ones are left off.
-    return [...surveyed, ...community, ...reported, ...mine]
+    return [...surveyed, ...onMap, ...mine]
   }, [surveyed, community, reported, contributions])
+
+  // The photo store keys by the backend's raw feature id; map pins are
+  // `community-<id>`, so re-key once here rather than on every pin.
+  const photosByFeature = useMemo(
+    () => new Map([...communityPhotos].map(([id, shots]) => [`community-${id}`, shots] as const)),
+    [communityPhotos],
+  )
   const { paths, kerbs, loading: loadingWalkable } = useWalkable(showWalkable, bbox, zoom)
   // Search leans toward you, but only needs to know roughly where (about 1 km).
   // Your live position changes every few seconds as you walk; passing it exactly

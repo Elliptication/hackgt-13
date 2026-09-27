@@ -1,5 +1,5 @@
 import { FEATURE_TYPES, toFeatureType } from '@/data/FeatureTypes'
-import type { BackendFeature, ContributionRef, UploadTicket } from '@/types/accessway'
+import type { BackendFeature, ContributionRef, ContributionRow, UploadTicket } from '@/types/accessway'
 import type { AccessFeature, FeatureType } from '@/types/features'
 import { pointFromEwkb } from '@/lib/geo/wkb'
 
@@ -246,13 +246,13 @@ export type CommunityFeature = Omit<AccessFeature, 'lat' | 'lng'> & {
 }
 
 /**
-<<<<<<< HEAD
  * Yes votes it takes to verify a report. The backend verifies at more than 5
  * votes with a yes share above 0.6 (routers/features.py), so six yeses is the
  * cleanest way there — this is what "fully solid" on the map means.
  */
 export const YES_VOTES_TO_VERIFY = 6
-=======
+
+/**
  * Where a feature is, from whichever of the three sources actually has it.
  *
  * `/features` sends `lat`/`lng`. `/features/{id}` sends neither — the `lat` and
@@ -282,15 +282,6 @@ export function placed(feature: CommunityFeature): feature is PlacedFeature {
   return typeof feature.lat === 'number' && typeof feature.lng === 'number'
 }
 
-const KNOWN_TYPES = Object.keys(FEATURE_TYPES) as FeatureType[]
-
-/** The API does not constrain `type`, so anything unrecognised lands in "other". */
-function toFeatureType(value: string): FeatureType {
-  const normalised = value?.trim().toLowerCase()
-  return KNOWN_TYPES.find((t) => t === normalised) ?? 'other'
-}
->>>>>>> main
-
 /**
  * Uses the name the contributor gave it. Rows from before names were collected
  * come back named after their type ("ramp"), so those borrow the label the
@@ -299,7 +290,7 @@ function toFeatureType(value: string): FeatureType {
 function toCommunityFeature(raw: BackendFeature): CommunityFeature {
   const type = toFeatureType(raw.type)
   const name = raw.name?.trim()
-  const verified = String(raw.status).toLowerCase() === 'true'
+  const verified = verifiedFrom(raw)
   // The API stores net (yes − no) and total; yes is half their sum.
   const net = Number(raw.net_votes ?? 0)
   const total = Number(raw.total_votes ?? 0)
@@ -311,18 +302,11 @@ function toCommunityFeature(raw: BackendFeature): CommunityFeature {
     featureId: String(raw.id),
     type,
     name: !name || name === raw.type ? FEATURE_TYPES[type].label : name,
-<<<<<<< HEAD
-    lat: raw.lat,
-    lng: raw.lng,
-    status: 'working',
-    verified,
-    report: verified ? undefined : { yes, needed: YES_VOTES_TO_VERIFY },
-=======
     description: raw.description?.trim() || undefined,
     ...coordsOf(raw),
     status: 'working',
-    verified: verifiedFrom(raw),
->>>>>>> main
+    verified,
+    report: verified ? undefined : { yes, needed: YES_VOTES_TO_VERIFY },
     contributionId: raw.contribution_id === null ? null : String(raw.contribution_id),
   }
 }
@@ -464,7 +448,6 @@ export const accessway = {
     lat,
     lng,
     type,
-    name,
     path,
     name,
     secret,
@@ -472,8 +455,6 @@ export const accessway = {
     lat: number
     lng: number
     type: FeatureType
-    /** What the contributor called it, e.g. "Library east entrance ramp". */
-    name: string
     path: string
     /**
      * What the contributor called the place. Required by the API as of
@@ -485,11 +466,7 @@ export const accessway = {
     secret: string
   }): Promise<CreatedContribution> {
     const created = await request<CreateContributionResponse>(
-<<<<<<< HEAD
-      `/contributions/?${query({ lat, lon: lng, type, name, path, secret })}`,
-=======
       `/contributions/?${query({ lat, lon: lng, type, path, name, secret })}`,
->>>>>>> main
       // Never retried: this inserts rows, so a repeat after a timeout that
       // actually landed would put the same ramp on the map twice.
       { method: 'POST', budgetMs: BUDGET_MS.write, attempts: ATTEMPTS.once },
@@ -585,10 +562,7 @@ export async function contributePhoto({
   lat: number
   lng: number
   type: FeatureType
-<<<<<<< HEAD
-=======
   /** Required by `POST /contributions/`; the upload form already collects it. */
->>>>>>> main
   name: string
 }): Promise<CreatedContribution & { path: string }> {
   const ticket = await accessway.initContribution({ lat, lng, type, fileType: extensionOf(file) })
