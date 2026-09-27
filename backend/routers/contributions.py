@@ -9,7 +9,7 @@ from datetime import datetime
 
 from supabase import Client
 
-from openai_client import get_openai_client
+# from openai_client import get_openai_client
 
 router = APIRouter(prefix='/contributions', tags=['features'])
 
@@ -126,78 +126,78 @@ async def get_contributions():
 
 
     
-def process_image(image_path):
-    client = get_openai_client()
+# def process_image(image_path):
+#     client = get_openai_client()
 
-    supabase : Client = get_supabase()
+#     supabase : Client = get_supabase()
 
-    response = (
-        supabase.storage
-        .from_('contribution_images')
-        .create_signed_url(
-            image_path,
-            120
-        )
-    )
+#     response = (
+#         supabase.storage
+#         .from_('contribution_images')
+#         .create_signed_url(
+#             image_path,
+#             120
+#         )
+#     )
 
-    image_url = response['signedUrl']
+#     image_url = response['signedUrl']
     
-    response = client.responses.create(
-        model="gpt-6-luna",
-        reasoning={"effort": "medium"},
-        input=[
-            {
-                "role": "developer",
-                "content": [
-                  {
-                    "type": "text",
-                    "text": "You are an image analyst focusing on accessibility. Your role is to classify an image as either a ramp, elevator, accessible bathroom, or accessible door. It can only be one, or it may be none of them. Use the json schema output. "
-                  }
-                ]
-            },
-            {
-                "role": "user",
-                "content": [
-                    {"type": "input_text", "text": "Classify the following image."},
-                    {
-                        "type": "input_image",
-                        "image_url": image_url,
-                    },
-                ],
-            }
-        ],
-        response_format={
-          "type": "json_schema",
-          "json_schema": {
-            "name": "accessibility_classification",
-            "strict": True,
-            "schema": {
-              "type": "object",
-              "properties": {
-                "classification": {
-                  "type": "string",
-                  "description": "Type of accessibility feature classified. Must be one of: ramp, elevator, bathroom, accessible doors, or none.",
-                  "enum": [
-                    "ramp",
-                    "elevator",
-                    "accessible_bathroom",
-                    "accessible_doors",
-                    "none"
-                  ]
-                }
-              },
-              "required": [
-                "classification"
-              ],
-              "additionalProperties": False
-            }
-          }
-        },
-        verbosity="low",
-        reasoning_effort="medium",
-        store=False
-    )
+#     response = client.responses.create(
+#         model="gpt-6-luna",
+#         reasoning={"effort": "medium"},
+#         input=[
+#             {
+#                 "role": "developer",
+#                 "content": [
+#                   {
+#                     "type": "text",
+#                     "text": "You are an image analyst focusing on accessibility. Your role is to classify an image as either a ramp, elevator, accessible bathroom, or accessible door. It can only be one, or it may be none of them. Use the json schema output. "
+#                   }
+#                 ]
+#             },
+#             {
+#                 "role": "user",
+#                 "content": [
+#                     {"type": "input_text", "text": "Classify the following image."},
+#                     {
+#                         "type": "input_image",
+#                         "image_url": image_url,
+#                     },
+#                 ],
+#             }
+#         ],
+#         response_format={
+#           "type": "json_schema",
+#           "json_schema": {
+#             "name": "accessibility_classification",
+#             "strict": True,
+#             "schema": {
+#               "type": "object",
+#               "properties": {
+#                 "classification": {
+#                   "type": "string",
+#                   "description": "Type of accessibility feature classified. Must be one of: ramp, elevator, bathroom, accessible doors, or none.",
+#                   "enum": [
+#                     "ramp",
+#                     "elevator",
+#                     "accessible_bathroom",
+#                     "accessible_doors",
+#                     "none"
+#                   ]
+#                 }
+#               },
+#               "required": [
+#                 "classification"
+#               ],
+#               "additionalProperties": False
+#             }
+#           }
+#         },
+#         verbosity="low",
+#         reasoning_effort="medium",
+#         store=False
+#     )
 
-    classification = response.choices[0].message['classification']
+#     classification = response.choices[0].message['classification']
 
-    return classification
+#     return classification
