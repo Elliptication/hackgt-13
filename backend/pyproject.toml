@@ -5,13 +5,13 @@ requires-python = ">=3.13"
 dependencies = [
     "fastapi",
     "supabase",
-    "python-dotenv",
-    "jwt",
+    "pyjwt",
     "requests>=2.34.2",
+    "httpx"
 ]
 
 [dependency-groups]
 dev = [
-    "workers-py",
+    "workers-py<1.17.4",
     "workers-runtime-sdk"
 ]

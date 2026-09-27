@@ -1,7 +1,7 @@
 {
-	"name": "hackgt-13",
+	"name": "accessway-api",
 	"main": "worker.py",
 	// Set this to today's date
-	"compatibility_date": "2026-09-26",
+	"compatibility_date": "2026-09-07",
 	"compatibility_flags": ["python_workers"]
 }

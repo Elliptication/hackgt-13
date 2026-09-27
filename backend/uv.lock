@@ -12,9 +12,8 @@ version = "0.1.0"
 source = { virtual = "." }
 dependencies = [
     { name = "fastapi" },
-    { name = "jwt" },
-    { name = "logging" },
-    { name = "python-dotenv" },
+    { name = "httpx" },
+    { name = "pyjwt" },
     { name = "requests" },
     { name = "supabase" },
 ]
@@ -28,16 +27,15 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "fastapi" },
-    { name = "jwt" },
-    { name = "logging", specifier = ">=0.4.9.6" },
-    { name = "python-dotenv" },
+    { name = "httpx" },
+    { name = "pyjwt" },
     { name = "requests", specifier = ">=2.34.2" },
     { name = "supabase" },
 ]
 
 [package.metadata.requires-dev]
 dev = [
-    { name = "workers-py" },
+    { name = "workers-py", specifier = "<1.17.4" },
     { name = "workers-runtime-sdk" },
 ]
 
@@ -437,24 +435,6 @@ sdist = { url = "https://files.pythonhosted.org/packages/f5/08/8eea9d4b8302028f3
 wheels = [
     { url = "https://files.pythonhosted.org/packages/58/a2/bb081bab032533a855d44de1d56f8e8426114ff1ba5d1f07a438a0a654f8/idna-3.20-py3-none-any.whl", hash = "sha256:ab7ae7122974553370f0bdb919e1a960b2cd1bc1ef0276416d896db81c14582c", size = 69583, upload-time = "2026-09-17T14:11:03.168Z" },
 ]
-
-[[package]]
-name = "jwt"
-version = "1.4.0"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "cryptography" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/7f/20/21254c9e601e6c29445d1e8854c2a81bdb554e07a82fb1f9846137a6965c/jwt-1.4.0.tar.gz", hash = "sha256:f6f789128ac247142c79ee10f3dba6e366ec4e77c9920d18c1592e28aa0a7952", size = 24911, upload-time = "2025-06-23T13:28:38.289Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/b9/80/34e3fae850adb0b7b8b9b1cf02b2d975fcb68e0e8eb7d56d6b4fc23f7433/jwt-1.4.0-py3-none-any.whl", hash = "sha256:7560a7f1de4f90de94ac645ee0303ac60c95b9e08e058fb69f6c330f71d71b11", size = 18248, upload-time = "2025-06-23T13:28:37.012Z" },
-]
-
-[[package]]
-name = "logging"
-version = "0.4.9.6"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/93/4b/979db9e44be09f71e85c9c8cfc42f258adfb7d93ce01deed2788b2948919/logging-0.4.9.6.tar.gz", hash = "sha256:26f6b50773f085042d301085bd1bf5d9f3735704db9f37c1ce6d8b85c38f2417", size = 96029, upload-time = "2013-06-04T23:43:22.086Z" }
 
 [[package]]
 name = "markdown-it-py"
@@ -942,15 +922,6 @@ wheels = [
 ]
 
 [[package]]
-name = "python-dotenv"
-version = "1.2.3"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/6a/53/ed9d74092561d4b01a2ef1349d52cdbc135e526c245f366b089cfca6de49/python_dotenv-1.2.3.tar.gz", hash = "sha256:a20a594dabeaa385725aa239d5244871c143ecb356add8a20fcf23773a6c3a35", size = 58945, upload-time = "2026-08-16T16:54:54.067Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/0d/17/c5c6b53ddc18f297992099b3d9ec16c855c0ccc83263a21fe4d1c625ec6c/python_dotenv-1.2.3-py3-none-any.whl", hash = "sha256:904552145e8bfed22162c09dab1c2b9b54fefa7b23ba780f4f26ca0316b0f0d9", size = 22780, upload-time = "2026-08-16T16:54:52.473Z" },
-]
-
-[[package]]
 name = "realtime"
 version = "2.31.0"
 source = { registry = "https://pypi.org/simple" }
@@ -1126,7 +1097,7 @@ wheels = [
 
 [[package]]
 name = "workers-py"
-version = "1.17.4"
+version = "1.17.3"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "click" },
@@ -1137,9 +1108,9 @@ dependencies = [
     { name = "rich" },
     { name = "workers-runtime-sdk" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/99/f2/99aaf88e4a0ac5275109f4701d88b88b4067fe729bdd59e438cd03aac636/workers_py-1.17.4.tar.gz", hash = "sha256:a3ae853ba1c7d94ebba7caf0d26e64707e26cc24cc7e16eeef1b042ecee31bb9", size = 71780, upload-time = "2026-09-21T21:29:07.843Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/a1/ec/aac859f1ad324c54877d3d403359da55309bd867ef4879e7ee45cde84161/workers_py-1.17.3.tar.gz", hash = "sha256:aff450f4ab46d385021fcd523ea263702a5b8f345415a5d1df3d20fd7a90c912", size = 70889, upload-time = "2026-09-15T02:19:57.581Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/3c/4b/eac581b7a4dffa60a7af57e4f4d22a25d8af215531b2bcb71e12aababb41/workers_py-1.17.4-py3-none-any.whl", hash = "sha256:fd7707f9f01e502bd315c0f963abad705e74c890780f91721e08e1a29fde03a4", size = 17370, upload-time = "2026-09-21T21:29:06.51Z" },
+    { url = "https://files.pythonhosted.org/packages/27/05/16be6c2f06c6969355f4230ce41c749216a2e94a976f9096d194be42b09e/workers_py-1.17.3-py3-none-any.whl", hash = "sha256:b74223c47d9379748c7b4936428c5d56fbd9f02dadee1a5dd1a96be81403ca00", size = 17155, upload-time = "2026-09-15T02:19:56.475Z" },
 ]
 
 [[package]]

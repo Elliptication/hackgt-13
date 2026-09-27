@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Request, HTTPException
 from fastapi.responses import RedirectResponse, JSONResponse
-import requests
+import httpx
 import os
 from workers import env
 import jwt
@@ -54,7 +54,7 @@ def login():
 
 
 @router.get("/callback")
-def callback(request: Request):
+async def callback(request: Request):
     expected_state = request.cookies.get('oauth_state')
     actual_state = request.query_params.get('state')
     if not expected_state or expected_state != actual_state:
@@ -73,16 +73,20 @@ def callback(request: Request):
         'grant_type': 'authorization_code',
         'redirect_uri': REDIRECT_URI,
     }
-    token_response = requests.post(TOKEN_URL, data=token_data)
-    token_response.raise_for_status()
-    token_json = token_response.json()
-    access_token = token_json.get('access_token')
 
-    if not access_token:
-        raise HTTPException(status_code=400, detail="Error: No access token received")
 
-    user_info_response = requests.get(USERINFO_URL, headers={'Authorization': f'Bearer {access_token}'})
-    user_info = user_info_response.json()
+    async with httpx.AsyncClient() as client:
+        token_response = await client.post(TOKEN_URL, data=token_data)
+        token_response.raise_for_status()
+        token_json = token_response.json()
+        access_token = token_json.get('access_token')
+
+        if not access_token:
+            raise HTTPException(status_code=400, detail="Error: No access token received")
+
+        user_info_response = await client.get(USERINFO_URL, headers={'Authorization': f'Bearer {access_token}'})
+        user_info = user_info_response.json()
+    
     user_id = user_info.get('sub')
     email = user_info.get('email')
     name = user_info.get('name')
@@ -108,7 +112,7 @@ def callback(request: Request):
 def get_profile(request: Request):
     user_id = request.cookies.get("user_id")
     username = request.cookies.get("username")
-    verify_token()
+    verify_token(request)
     return user_id, username
 
 # A utility for debugging, specifically to check the contents and validility of the JWT
