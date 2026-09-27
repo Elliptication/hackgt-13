@@ -148,11 +148,20 @@ activemq-data/
 *.sage.py
 
 # Environments
+*.env
+.wrangler/
+node_modules/
+.dev.vars
 .env
 .envrc
 .venv
-env/
-venv/
+.env/
+.venv/
+.venv-workers/
+__pycache__/
+*.py[cod]
+.env
+.env.*
 ENV/
 env.bak/
 venv.bak/
@@ -216,3 +225,4 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+.vscode/settings.json
