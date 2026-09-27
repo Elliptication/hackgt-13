@@ -11,7 +11,7 @@ from supabase import Client
 
 # from openai_client import get_openai_client
 
-router = APIRouter(prefix='/contributions', tags=['features'])
+router = APIRouter(prefix='/contributions', tags=['contributions'])
 
 SECRET = env.UPLOAD_SECRET
 SUPABASE_URL = env.SUPABASE_URL
@@ -120,6 +120,7 @@ async def get_contributions():
     response = (
         supabase.table('contributions')
         .select('*')
+        .execute()
     )
 
     return response.data
