@@ -1,5 +1,5 @@
 {
-	"name": "accessway-api",
+	"name": "hackgt-13",
 	"main": "worker.py",
 	// Set this to today's date
 	"compatibility_date": "2026-09-26",
