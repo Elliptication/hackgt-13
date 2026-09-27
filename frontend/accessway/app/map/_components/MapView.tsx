@@ -15,6 +15,7 @@ import { useAuth } from '@/hooks/useAuth'
 import { useContributions } from '@/hooks/useContributions'
 import { useCommunityFeatures } from '@/hooks/useCommunityFeatures'
 import { useCommunityPhotos } from '@/hooks/useCommunityPhotos'
+import { useContributedFeatures } from '@/hooks/useContributedFeatures'
 import { placed } from '@/lib/api/accessway'
 import { useFeatures } from '@/hooks/useFeatures'
 import { useGeolocation } from '@/hooks/useGeolocation'
@@ -74,6 +75,10 @@ export function MapView({ notice = null }: MapViewProps) {
   // The photos behind those features, from a second endpoint. `/features` never
   // returns `image_path`, so this join is the only way a pin gets its picture.
   const { byFeatureId: communityPhotos } = useCommunityPhotos()
+  // Every feature somebody uploaded a photo for, looked up by id — the area
+  // search above can't find them (see useContributedFeatures).
+  const photoFeatureIds = useMemo(() => [...communityPhotos.keys()], [communityPhotos])
+  const contributed = useContributedFeatures(photoFeatureIds)
 
   // Confirmed community photos sit alongside surveyed data on the same map.
   // OpenStreetMap has a wheelchair tag on under 2% of buildings around here, so
@@ -81,9 +86,11 @@ export function MapView({ notice = null }: MapViewProps) {
   const features = useMemo(() => {
     // A photo uploaded in this session is already on the API, so once the area
     // reloads it arrives twice — once from the server, once from local state.
-    const fromServer = new Set([...community, ...reported].map((f) => f.featureId))
+    // The same feature can come from the area search and the id lookup; keep one.
+    const byId = new Map([...contributed, ...community, ...reported].map((f) => [f.featureId, f]))
+    const fromServer = new Set(byId.keys())
     // A feature the API can't place (no coordinates stored) can't be drawn.
-    const onMap = [...community, ...reported].filter(placed)
+    const onMap = [...byId.values()].filter(placed)
     const mine = contributions
       .filter((c) => c.status !== 'rejected' && !(c.featureId && fromServer.has(c.featureId)))
       .map(toFeature)
@@ -91,7 +98,7 @@ export function MapView({ notice = null }: MapViewProps) {
     // Unconfirmed reports are on the map too, drawn faint and filling in as
     // people vote yes (see reportOpacity). Rejected ones are left off.
     return [...surveyed, ...onMap, ...mine]
-  }, [surveyed, community, reported, contributions])
+  }, [surveyed, community, reported, contributed, contributions])
 
   // The photo store keys by the backend's raw feature id; map pins are
   // `community-<id>`, so re-key once here rather than on every pin.
