@@ -236,12 +236,16 @@ export function UploadForm() {
           id={`${id}-name`}
           value={name}
           onChange={(e) => setName(e.target.value)}
-          placeholder="e.g. Library east entrance ramp"
-          maxLength={80}
+          placeholder="e.g. Library elevator, serves all floors"
+          maxLength={120}
           aria-invalid={!!errors.name}
-          aria-describedby={errors.name ? `${id}-name-error` : undefined}
+          aria-describedby={errors.name ? `${id}-name-hint ${id}-name-error` : `${id}-name-hint`}
           className={inputClass}
         />
+        <p id={`${id}-name-hint`} className="mt-1.5 text-xs leading-relaxed text-muted">
+          Add anything that helps someone find it: which floor it’s on, which door or wing, or whether an elevator
+          reaches every floor. For example, “3rd floor restroom, east wing” or “Side entrance ramp off Fifth St.”
+        </p>
         {errors.name && (
           <p id={`${id}-name-error`} className="mt-1.5 text-sm text-[var(--tag-red)]">
             {errors.name}

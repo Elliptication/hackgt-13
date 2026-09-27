@@ -1,136 +1,89 @@
-import { ArrowRight, Camera, Coins, MapPinned, Search, Users } from 'lucide-react'
+import { ArrowRight } from 'lucide-react'
 
 import { Button } from '@/components/Button'
-import { REWARD_CENTS } from '@/lib/constants'
+import { REWARD_CENTS, VOTES_TO_APPROVE } from '@/lib/constants'
+
+import { HomeMap } from './HomeMap'
 
 /**
- * The page leads with who it is for, and what they get.
+ * The home page.
  *
- * Two commitments shape everything below the headline:
- *   - we say what we do not know, rather than implying everywhere is fine
- *   - almost nothing is mapped yet, so the community is the product and not a
- *     side feature — which is why "Add a place" sits in the hero rather than in
- *     a footer
+ * It leads with the map itself rather than a description of one: real tiles,
+ * real pins, real counts. Everything below is short and specific, because the
+ * people reading it want to know one thing — can I get in — and the honest
+ * answer today is "sometimes, and you can help".
+ *
+ * The previous design is in design-backup/home-Hero.tsx.txt.
  */
-
-const WHAT_WE_MAP = [
-  { label: 'Step-free entrances', color: 'var(--tag-purple)', bg: 'var(--tag-purple-bg)' },
-  { label: 'Elevators', color: 'var(--tag-blue)', bg: 'var(--tag-blue-bg)' },
-  { label: 'Ramps', color: 'var(--tag-green)', bg: 'var(--tag-green-bg)' },
-  { label: 'Accessible restrooms', color: 'var(--tag-orange)', bg: 'var(--tag-orange-bg)' },
-  { label: 'Stairs and curbs in the way', color: 'var(--tag-red)', bg: 'var(--tag-red-bg)' },
-]
 
 const STEPS = [
   {
-    icon: Search,
-    color: 'var(--tag-blue)',
-    bg: 'var(--tag-blue-bg)',
-    title: 'Find where you want to go',
-    body: 'Search any place and see whether it’s accessible.',
+    title: 'Look it up before you go',
+    body: 'Search a building or an address and see its step-free entrances, elevators and accessible restrooms.',
   },
   {
-    icon: MapPinned,
-    color: 'var(--tag-green)',
-    bg: 'var(--tag-green-bg)',
-    title: 'Know how to get there',
-    body: 'See ramps, elevators, accessible entrances, restrooms, and wheelchair-friendly routes.',
+    title: 'Take a route that works',
+    body: 'Turn on walkable paths to see sidewalks, curb ramps, and where the stairs are.',
   },
   {
-    icon: Users,
-    color: 'var(--tag-orange)',
-    bg: 'var(--tag-orange-bg)',
-    title: 'Help make the world easier to access',
-    body: 'Anyone can upload or verify accessibility information to help wheelchair users get where they need to go.',
+    title: 'Add what’s missing',
+    body: `Photograph a ramp or an elevator. Once ${VOTES_TO_APPROVE} people confirm it, it’s on the map and you get ${REWARD_CENTS}¢.`,
   },
 ]
 
 export function Hero() {
   return (
     <>
-      <section className="relative isolate overflow-hidden">
-        {/* Soft pastel glow behind the headline */}
-        <div aria-hidden="true" className="pointer-events-none absolute inset-0 -z-10">
-          <div className="absolute top-10 left-1/2 size-[28rem] -translate-x-[85%] rounded-full bg-[var(--tag-blue-bg)] opacity-100 blur-3xl" />
-          <div className="absolute top-24 left-1/2 size-[24rem] -translate-x-[5%] rounded-full bg-[var(--tag-yellow-bg)] opacity-100 blur-3xl" />
-          <div className="absolute top-64 left-1/2 size-[20rem] -translate-x-1/2 rounded-full bg-[var(--tag-green-bg)] opacity-90 blur-3xl" />
-        </div>
-
-        <div className="mx-auto max-w-3xl px-6 pt-20 pb-20 text-center sm:pt-28">
-          <h1 className="text-4xl leading-[1.1] font-bold tracking-tight text-balance sm:text-6xl">
-            Helping wheelchair users{' '}
-            <span className="text-primary">get where they need to go.</span>
+      <section className="mx-auto grid max-w-6xl items-center gap-10 px-4 pt-12 pb-16 sm:px-6 sm:pt-20 lg:grid-cols-[minmax(0,5fr)_minmax(0,6fr)] lg:gap-14">
+        <div>
+          <h1 className="text-4xl leading-[1.08] font-bold text-balance sm:text-5xl lg:text-[3.4rem]">
+            Know the way in before you get there.
           </h1>
-
-          <p className="mx-auto mt-5 max-w-xl text-lg leading-relaxed text-pretty text-muted">
-            Find accessible places, entrances, ramps, elevators and routes — powered by a community sharing
-            real accessibility information.
+          <p className="mt-5 max-w-md text-lg leading-relaxed text-pretty text-muted">
+            AccessWay maps ramps, elevators, accessible entrances and restrooms. Each one is added and checked by
+            people who use them.
           </p>
-
-          <div className="mt-9 flex flex-wrap items-center justify-center gap-3">
+          <div className="mt-8 flex flex-wrap gap-3">
             <Button href="/map">
               Open the map <ArrowRight className="size-4" aria-hidden="true" />
             </Button>
-            <Button href="/contribute" variant="secondary">
-              <Camera className="size-4" aria-hidden="true" />
+            <Button href="/contribute" variant="ghost" className="text-foreground ring-1 ring-border">
               Add a place
             </Button>
           </div>
-
-          <ul className="mt-12 flex flex-wrap justify-center gap-2" aria-label="What the map shows">
-            {WHAT_WE_MAP.map(({ label, color, bg }) => (
-              <li
-                key={label}
-                className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-sm"
-                style={{ background: bg, color }}
-              >
-                {label}
-              </li>
-            ))}
-          </ul>
         </div>
+
+        <HomeMap />
       </section>
 
-      <section id="how-it-works" className="scroll-mt-20">
-        <div className="mx-auto max-w-5xl px-6 py-20">
-          <h2 className="text-center text-3xl font-bold tracking-tight">How AccessWay works</h2>
-          <p className="mt-2 text-center text-muted">Built for wheelchair users. Powered by the community.</p>
-          <ol className="mt-10 grid gap-5 sm:grid-cols-3">
-            {STEPS.map(({ icon: Icon, color, bg, title, body }) => (
-              <li
-                key={title}
-                className="rounded-3xl bg-surface p-6 ring-1 ring-border/60 transition-transform motion-safe:hover:-translate-y-0.5"
-              >
-                <span className="grid size-11 place-items-center rounded-2xl" style={{ background: bg }}>
-                  <Icon className="size-5" style={{ color }} aria-hidden="true" />
-                </span>
-                <h3 className="mt-4 text-lg font-bold">{title}</h3>
-                <p className="mt-1 text-[15px] leading-relaxed text-muted">{body}</p>
+      <section id="how-it-works" className="scroll-mt-20 border-t border-border">
+        <div className="mx-auto max-w-6xl px-4 py-14 sm:px-6">
+          <h2 className="text-sm font-semibold tracking-wide text-muted uppercase">How it works</h2>
+          <ol className="mt-6 grid gap-8 sm:grid-cols-3 sm:gap-10">
+            {STEPS.map(({ title, body }, i) => (
+              <li key={title}>
+                <span className="text-sm font-semibold text-primary tabular-nums">{String(i + 1).padStart(2, '0')}</span>
+                <h3 className="mt-1 text-lg font-bold">{title}</h3>
+                <p className="mt-1.5 leading-relaxed text-muted">{body}</p>
               </li>
             ))}
           </ol>
         </div>
       </section>
 
-      <section className="px-6 pb-20">
-        <div className="mx-auto flex max-w-5xl flex-col items-center gap-6 rounded-3xl bg-[var(--tag-yellow-bg)] px-6 py-10 text-center sm:flex-row sm:px-10 sm:text-left">
-          <span className="grid size-16 shrink-0 place-items-center rounded-full bg-background">
-            <Camera className="size-7 text-[var(--tag-yellow)]" aria-hidden="true" />
-          </span>
-          <div className="flex-1">
-            <h2 className="text-2xl font-bold tracking-tight">One photo can help someone get there.</h2>
-            <p className="mt-1 text-muted">
-              See a ramp, elevator, accessible entrance, or barrier? Add it to AccessWay and help wheelchair
-              users move with more confidence — and earn {REWARD_CENTS}¢ for every photo the community
-              confirms.
+      <section className="border-t border-border bg-surface">
+        <div className="mx-auto flex max-w-6xl flex-col gap-6 px-4 py-14 sm:px-6 md:flex-row md:items-end md:justify-between">
+          <div className="max-w-xl">
+            <h2 className="text-2xl font-bold sm:text-3xl">Most of this map doesn’t exist yet.</h2>
+            <p className="mt-3 leading-relaxed text-muted">
+              Fewer than 1 in 50 buildings around here say whether you can get in with a wheelchair. Every
+              photo you add fills one of those gaps, and pays {REWARD_CENTS}¢ once it’s confirmed.
             </p>
           </div>
-          <div className="flex flex-wrap justify-center gap-2">
-            <Button href="/contribute">
-              <Coins className="size-4" aria-hidden="true" /> Add a place
-            </Button>
-            <Button href="/contribute?tab=review" variant="ghost" className="bg-background/60">
-              Check someone&rsquo;s photo
+          <div className="flex flex-wrap gap-3">
+            <Button href="/contribute">Add a photo</Button>
+            <Button href="/contribute?tab=review" variant="ghost" className="bg-background text-foreground ring-1 ring-border">
+              Check someone’s photo
             </Button>
           </div>
         </div>

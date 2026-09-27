@@ -74,6 +74,9 @@ export function LocateButton({
             <Circle
               center={[position.lat, position.lng]}
               radius={position.accuracy}
+              // Purely a picture. Clickable, it sat over the walkable paths and
+              // swallowed every click inside it, so their popups never opened.
+              interactive={false}
               pathOptions={{ color: 'var(--primary)', weight: 1, fillColor: 'var(--primary)', fillOpacity: 0.1 }}
             />
           )}

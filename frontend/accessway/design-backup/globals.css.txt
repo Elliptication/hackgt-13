@@ -80,15 +80,14 @@
   --color-primary-soft: var(--primary-soft);
   --color-ring: var(--ring);
 
-  --font-sans: var(--font-atkinson), ui-sans-serif, -apple-system, "Segoe UI", Helvetica, Arial, sans-serif;
-  --font-display: var(--font-atkinson), ui-sans-serif, sans-serif;
+  --font-sans: var(--font-inter), ui-sans-serif, -apple-system, "Segoe UI", Helvetica, Arial, sans-serif;
+  --font-display: var(--font-nunito), var(--font-inter), ui-sans-serif, sans-serif;
 }
 
 h1,
 h2,
 h3 {
   font-family: var(--font-display);
-  letter-spacing: -0.015em;
 }
 
 body {

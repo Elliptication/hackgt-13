@@ -56,13 +56,17 @@ export function Hero() {
             </div>
           </dl>
         ) : (
-          <div className="flex flex-col items-start gap-3 rounded-2xl bg-[var(--tag-yellow-bg)] px-4 py-3 sm:items-end sm:text-right">
-            <p className="text-sm">
-              <span className="font-medium">Earn {REWARD_CENTS}¢ per approved photo.</span>
-              <br />
-              <span className="text-muted">Log in to track what you’ve earned.</span>
-            </p>
-            <LoginButton className="h-9 px-4 text-sm">Log in to earn</LoginButton>
+          <div className="flex w-full flex-col gap-3 rounded-2xl bg-[var(--tag-yellow-bg)] p-4 sm:w-80 sm:shrink-0">
+            <div className="flex items-center gap-3">
+              <span className="grid size-10 shrink-0 place-items-center rounded-full bg-background/70">
+                <Coins className="size-5 text-[var(--tag-yellow)]" aria-hidden="true" />
+              </span>
+              <p className="text-sm leading-snug">
+                <span className="block font-medium">Earn {REWARD_CENTS}¢ per approved photo</span>
+                <span className="block text-muted">Log in to track what you’ve earned</span>
+              </p>
+            </div>
+            <LoginButton className="h-9 w-full px-4 text-sm">Log in to earn</LoginButton>
           </div>
         )}
       </header>

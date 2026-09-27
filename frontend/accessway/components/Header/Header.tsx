@@ -7,17 +7,24 @@ import { Accessibility } from 'lucide-react'
 import { Button } from '@/components/Button'
 import { UserMenu } from '@/components/Header/UserMenu'
 import { useAuth } from '@/hooks/useAuth'
+import { useScrolledPast } from '@/hooks/useScrolledPast'
 import { APP_NAME } from '@/lib/constants'
 
 export function Header() {
   const pathname = usePathname()
   const { user } = useAuth()
+  // Flat at the top of the page; the line appears once content slides under it.
+  const scrolled = useScrolledPast(4)
 
   const onMap = pathname.startsWith('/map')
   const onAuthPage = pathname.startsWith('/login')
 
   return (
-    <header className="fixed inset-x-0 top-0 z-50 border-b border-border/70 bg-background/80 backdrop-blur-md">
+    <header
+      className={`fixed inset-x-0 top-0 z-50 border-b bg-background/80 backdrop-blur-md transition-colors duration-200 ${
+        scrolled ? 'border-border/70' : 'border-transparent'
+      }`}
+    >
       <div className="mx-auto flex h-14 max-w-6xl items-center justify-between gap-2 px-4 sm:px-6">
         <Link href="/" className="-ml-2 flex items-center gap-2 rounded-full px-2 py-1 font-[family-name:var(--font-display)] text-[17px] font-bold hover:bg-hover">
           <span className="grid size-7 place-items-center rounded-full bg-primary-soft text-primary">
