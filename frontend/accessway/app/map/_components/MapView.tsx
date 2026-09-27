@@ -2,7 +2,7 @@
 
 import dynamic from 'next/dynamic'
 import Link from 'next/link'
-import { Accessibility, Crosshair, Footprints, LoaderCircle, PanelLeftClose, PanelLeftOpen, TriangleAlert } from 'lucide-react'
+import { Accessibility, Crosshair, Footprints, LoaderCircle, PanelLeftClose, PanelLeftOpen, SlidersHorizontal, TriangleAlert } from 'lucide-react'
 import { useCallback, useId, useMemo, useState } from 'react'
 
 import { AccessBadge } from '@/components/AccessBadge'
@@ -21,7 +21,7 @@ import { useRoute } from '@/hooks/useRoute'
 import { APP_NAME } from '@/lib/constants'
 import { FEATURE_ICONS } from '@/lib/featureIcons'
 import { toFeature } from '@/lib/contribute'
-import type { AccessFeature } from '@/types/features'
+import type { FeatureType } from '@/types/features'
 import type { LatLng, Place } from '@/types/places'
 
 import { RoutePanel } from './RoutePanel'
@@ -36,28 +36,22 @@ const EMPTY: Endpoint = { label: '', place: null, useMyLocation: false }
 const MY_LOCATION: Endpoint = { label: 'Your location', place: null, useMyLocation: true }
 
 type MapViewProps = {
-  features: AccessFeature[]
   notice?: string | null
 }
 
-/**
- * Plan a trip between two points, then see the route.
- *
- * Choosing a place fills a field rather than immediately routing: people plan
- * trips they are not currently standing at the start of, so "from here" is a
- * default, never an assumption.
- */
-export function MapView({ features: initialFeatures, notice = null }: MapViewProps) {
+export function MapView({ notice = null }: MapViewProps) {
   const [query, setQuery] = useState('')
   const [bbox, setBbox] = useState<string | null>(null)
+  /** Feature types to show. Empty means all of them. */
+  const [typeFilter, setTypeFilter] = useState<Set<FeatureType>>(() => new Set())
+  const [filterOpen, setFilterOpen] = useState(false)
+  const filterId = useId()
   const [zoom, setZoom] = useState<number | null>(null)
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [panel, setPanel] = useState<'auto' | 'open' | 'closed'>('auto')
   const [showWalkable, setShowWalkable] = useState(false)
   const [pinningFor, setPinningFor] = useState<'from' | 'to' | null>(null)
 
-  // Most trips start where you are, so that's the default. Easy to change:
-  // click "From" and search, drop a pin, or clear it.
   const [from, setFrom] = useState<Endpoint>(MY_LOCATION)
   const [to, setTo] = useState<Endpoint>(EMPTY)
   const [active, setActive] = useState<'from' | 'to'>('to')
@@ -69,18 +63,14 @@ export function MapView({ features: initialFeatures, notice = null }: MapViewPro
   const { position: myLocation, status: locationStatus, message: locationMessage, locate } = useGeolocation()
   const origin: LatLng | null = myLocation
 
-  const { features: surveyed, loading: loadingArea, error: areaError, tooFarOut, noBackend } = useFeatures(initialFeatures, bbox, zoom)
+  const { features: surveyed, loading: loadingArea, error: areaError, tooFarOut, noBackend } = useFeatures( bbox, zoom)
   const { contributions } = useContributions()
 
-  // Approved community photos sit alongside surveyed data on the same map.
-  // OpenStreetMap has a wheelchair tag on under 2% of buildings around here, so
-  // what people add is not a nice-to-have — it is most of the eventual map.
   const features = useMemo(
     () => [...surveyed, ...contributions.filter((c) => c.status === 'approved').map(toFeature)],
     [surveyed, contributions],
   )
   const { paths, kerbs, loading: loadingWalkable } = useWalkable(showWalkable, bbox, zoom)
-  // Bias search toward the user when we know where they are, otherwise the map.
   const { results, loading: searching, error: searchError, offline: searchOffline } = usePlaceSearch(query, bbox, origin)
   const { route, destination, loading: routing, error: routeError, offline: routeOffline, findRoute, clear } = useRoute()
 
@@ -89,9 +79,7 @@ export function MapView({ features: initialFeatures, notice = null }: MapViewPro
     setZoom(level)
   }, [])
 
-  /** Clicking into From or To makes it the one being searched for. */
   function activate(which: 'from' | 'to') {
-    // A half-typed search belongs to the field it was typed in.
     if (which !== active) setQuery('')
     setActive(which)
   }
@@ -104,13 +92,32 @@ export function MapView({ features: initialFeatures, notice = null }: MapViewPro
       setTo(MY_LOCATION)
     }
     setQuery('')
-    // Ask again if we don't have a fix yet (or the last attempt failed).
     if (!myLocation && locationStatus !== 'locating') locate()
   }
 
-  const nearby = useMemo(() => features.slice(0, 60), [features])
+  // The type filter applies to the map and the sidebar alike.
+  const shown = useMemo(
+    () => (typeFilter.size === 0 ? features : features.filter((f) => typeFilter.has(f.type))),
+    [features, typeFilter],
+  )
 
-  /** A dropped pin becomes a minimal Place, so both endpoints behave alike. */
+  // The sidebar lists what's in view, not the first 60 things ever loaded —
+  // otherwise after flying to another city it kept listing the old one.
+  const nearby = useMemo(() => {
+    if (!bbox) return shown.slice(0, 60)
+    const [west, south, east, north] = bbox.split(',').map(Number)
+    return shown.filter((f) => f.lat >= south && f.lat <= north && f.lng >= west && f.lng <= east).slice(0, 60)
+  }, [shown, bbox])
+
+  function toggleType(type: FeatureType) {
+    setTypeFilter((current) => {
+      const next = new Set(current)
+      if (next.has(type)) next.delete(type)
+      else next.add(type)
+      return next
+    })
+  }
+
   function dropPin(at: LatLng) {
     const which = pinningFor
     if (!which) return
@@ -138,7 +145,6 @@ export function MapView({ features: initialFeatures, notice = null }: MapViewPro
     setPinningFor(null)
   }
 
-  // Any of the three failing for the same reason is one condition, not three.
   const backendMissing = noBackend || searchOffline || routeOffline
 
   const droppedMarkers = useMemo(() => {
@@ -184,7 +190,6 @@ export function MapView({ features: initialFeatures, notice = null }: MapViewPro
     setPanel(panelVisible() ? 'closed' : 'open')
   }
 
-  /** Whether the panel is showing right now (auto = open on desktop, closed on phones) */
   function panelVisible() {
     return panel === 'open' || (panel === 'auto' && isDesktop())
   }
@@ -388,9 +393,62 @@ export function MapView({ features: initialFeatures, notice = null }: MapViewPro
                     </span>
                   </label>
 
-                  <p className="px-3 pt-2 pb-1 text-xs font-medium tracking-wide text-muted uppercase">
-                    Ramps, lifts and step-free doors nearby
-                  </p>
+                  <div className="flex items-center justify-between gap-2 pt-1 pr-1 pl-3">
+                    <p className="text-xs font-medium tracking-wide text-muted uppercase">In this area</p>
+                    <button
+                      type="button"
+                      onClick={() => setFilterOpen((open) => !open)}
+                      aria-expanded={filterOpen}
+                      aria-controls={filterId}
+                      className={`inline-flex h-8 items-center gap-1.5 rounded-full px-3 text-sm font-medium transition-colors ${
+                        typeFilter.size > 0 ? 'bg-primary-soft text-primary' : 'text-muted hover:bg-hover hover:text-foreground'
+                      }`}
+                    >
+                      <SlidersHorizontal className="size-4" aria-hidden="true" />
+                      Filter
+                      {typeFilter.size > 0 && (
+                        <span className="grid min-w-5 place-items-center rounded-full bg-primary px-1.5 text-xs text-primary-foreground">
+                          {typeFilter.size}
+                          <span className="sr-only"> selected</span>
+                        </span>
+                      )}
+                    </button>
+                  </div>
+
+                  {filterOpen && (
+                    <div id={filterId} role="group" aria-label="Show only" className="flex flex-wrap gap-1.5 px-2 pt-1.5 pb-1">
+                      {(Object.entries(FEATURE_TYPES) as [FeatureType, (typeof FEATURE_TYPES)[FeatureType]][]).map(
+                        ([type, meta]) => {
+                          const Icon = FEATURE_ICONS[type]
+                          const on = typeFilter.has(type)
+                          return (
+                            <button
+                              key={type}
+                              type="button"
+                              onClick={() => toggleType(type)}
+                              aria-pressed={on}
+                              className={`inline-flex h-8 items-center gap-1.5 rounded-full px-3 text-sm transition-colors ${
+                                on ? 'font-medium ring-2 ring-current' : 'bg-surface ring-1 ring-border hover:bg-hover'
+                              }`}
+                              style={on ? { background: meta.bg, color: meta.color } : undefined}
+                            >
+                              <Icon className="size-3.5" style={{ color: meta.color }} aria-hidden="true" />
+                              <span className={on ? 'text-foreground' : ''}>{meta.plural}</span>
+                            </button>
+                          )
+                        },
+                      )}
+                      {typeFilter.size > 0 && (
+                        <button
+                          type="button"
+                          onClick={() => setTypeFilter(new Set())}
+                          className="inline-flex h-8 items-center rounded-full px-3 text-sm font-medium text-primary hover:bg-primary-soft"
+                        >
+                          Show all
+                        </button>
+                      )}
+                    </div>
+                  )}
 
                   {tooFarOut && (
                     <p className="mx-1 rounded-2xl bg-surface px-3 py-3 text-sm text-muted ring-1 ring-border">
@@ -405,9 +463,23 @@ export function MapView({ features: initialFeatures, notice = null }: MapViewPro
                     </p>
                   )}
 
-                  {(areaError || backendMissing) && !loadingArea && <ApiContract />}
-                  {nearby.length === 0 && (
-                    <p className="px-3 py-4 text-sm text-muted">Nothing recorded in this area yet.</p>
+                  {/* The API spec is for when there's no backend at all; any other
+                      failure is a real error and says what went wrong. */}
+                  {backendMissing && !loadingArea && <ApiContract />}
+                  {areaError && !backendMissing && !loadingArea && (
+                    <p role="status" className="mx-1 mb-1 flex items-start gap-2 rounded-2xl bg-[var(--tag-yellow-bg)] px-3 py-2.5 text-sm">
+                      <TriangleAlert className="mt-0.5 size-4 shrink-0" style={{ color: 'var(--tag-yellow)' }} aria-hidden="true" />
+                      <span>
+                        Couldn’t load part of this area: {areaError} It will try again when you move the map.
+                      </span>
+                    </p>
+                  )}
+                  {nearby.length === 0 && !loadingArea && !tooFarOut && (
+                    <p className="px-3 py-4 text-sm text-muted">
+                      {typeFilter.size > 0
+                        ? 'None of those in this area. Try another filter, or move the map.'
+                        : 'Nothing recorded in this area yet.'}
+                    </p>
                   )}
                   <ul>
                     {nearby.map((f) => {
@@ -447,7 +519,7 @@ export function MapView({ features: initialFeatures, notice = null }: MapViewPro
 
       <div className="absolute inset-0 isolate">
         <LeafletMap
-          features={features}
+          features={shown}
           paths={paths}
           kerbs={kerbs}
           showWalkable={showWalkable}
