@@ -44,12 +44,12 @@ def login():
         'redirect_uri': REDIRECT_URI,
         'response_type': 'code',
         'scope': 'openid email profile',
-        'state': secrets.token_urlsafe(32),
+        'state': state,
     }
     auth_url = f"{AUTH_URL}?{urllib.parse.urlencode(params)}"
     response = RedirectResponse(auth_url)
     response.set_cookie(key='oauth_state', value=state, httponly=True, secure=True, samesite='lax', domain=urlparse(FRONTEND_URL).netloc)
-    return RedirectResponse(auth_url)
+    return response
 
 
 
