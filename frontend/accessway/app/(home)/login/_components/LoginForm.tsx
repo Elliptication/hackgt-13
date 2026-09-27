@@ -1,145 +1,59 @@
 'use client'
 
-import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 
 import { AuthCard } from './AuthCard'
-import { Field } from './Field'
-import { useAuth } from '@/hooks/useAuth'
+import { GOOGLE_LOGIN_URL, googleLoginHref } from '@/lib/auth'
 import { REWARD_CENTS } from '@/lib/constants'
 
 /**
- * One page for logging in and signing up:
- *   1. Enter your email.
- *   2. Known email → enter your password. New email → pick a name and password.
+ * Google is the only way in, and it covers signing up too: a first Google
+ * sign-in creates the account. Where the button goes is set in lib/auth.ts.
  */
-type Step = 'email' | 'password' | 'create'
-type Errors = Partial<Record<'email' | 'name' | 'password' | 'form', string>>
-
-const COPY: Record<Step, { title: string; subtitle: string }> = {
-  email: {
-    title: 'Log in',
-    subtitle: `Add photos, check others’ photos, and earn ${REWARD_CENTS}¢ for every one that’s approved.`,
-  },
-  password: { title: 'Welcome back', subtitle: 'Enter your password to log in.' },
-  create: { title: 'Create your account', subtitle: 'Looks like you’re new here. It only takes a second.' },
-}
-
-const submitClass =
-  'h-11 w-full rounded-full bg-primary text-[15px] font-medium text-primary-foreground shadow-[0_2px_8px_-2px_rgb(11_107_203/0.35)] transition hover:bg-primary-hover'
-
 export function LoginForm({ next }: { next: string }) {
-  const { hasAccount, logIn, signUp } = useAuth()
-  const router = useRouter()
-  const [step, setStep] = useState<Step>('email')
-  const [email, setEmail] = useState('')
-  const [name, setName] = useState('')
-  const [password, setPassword] = useState('')
-  const [errors, setErrors] = useState<Errors>({})
+  const [notReady, setNotReady] = useState(false)
 
-  function continueWithEmail(e: React.FormEvent) {
-    e.preventDefault()
-    if (!/^\S+@\S+\.\S+$/.test(email.trim())) return setErrors({ email: 'Enter a valid email address.' })
-    setErrors({})
-    setPassword('')
-    setStep(hasAccount(email) ? 'password' : 'create')
+  function continueWithGoogle() {
+    if (!GOOGLE_LOGIN_URL) {
+      console.warn('Google login is not set up: fill in GOOGLE_LOGIN_URL in lib/auth.ts.')
+      setNotReady(true)
+      return
+    }
+    window.location.assign(googleLoginHref(next))
   }
-
-  function logInWithPassword(e: React.FormEvent) {
-    e.preventDefault()
-    if (!password) return setErrors({ password: 'Enter your password.' })
-    const { error } = logIn({ email, password })
-    if (error) return setErrors({ form: error })
-    router.push(next)
-  }
-
-  function createAccount(e: React.FormEvent) {
-    e.preventDefault()
-    const found: Errors = {}
-    if (!name.trim()) found.name = 'What should we call you?'
-    if (password.length < 8) found.password = 'Use at least 8 characters.'
-    if (Object.keys(found).length) return setErrors(found)
-    const { error } = signUp({ name, email, password })
-    if (error) return setErrors({ form: error })
-    router.push(next)
-  }
-
-  function changeEmail() {
-    setStep('email')
-    setErrors({})
-    setPassword('')
-  }
-
-  const { title, subtitle } = COPY[step]
 
   return (
     <AuthCard
-      title={title}
-      subtitle={subtitle}
-      footer={step === 'email' ? 'New here? Just enter your email and we’ll set you up.' : null}
+      title="Log in"
+      subtitle={`Add photos, check others’ photos, and earn ${REWARD_CENTS}¢ for every one that’s approved.`}
+      footer="New here? Signing in with Google sets up your account."
     >
-      {errors.form && (
+      {notReady && (
         <p role="alert" className="mb-4 rounded-xl bg-[var(--tag-red-bg)] px-3.5 py-2.5 text-sm">
-          {errors.form}
+          Google login isn’t set up yet. Try again later.
         </p>
       )}
 
-      {step === 'email' ? (
-        <form onSubmit={continueWithEmail} noValidate className="space-y-4">
-          <Field
-            label="Email"
-            type="email"
-            autoComplete="email"
-            autoFocus
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            error={errors.email}
-          />
-          <button type="submit" className={submitClass}>
-            Continue
-          </button>
-        </form>
-      ) : (
-        <form onSubmit={step === 'password' ? logInWithPassword : createAccount} noValidate className="space-y-4">
-          {/* The email they entered, with a way back to fix it */}
-          <div className="flex items-center justify-between gap-2 rounded-xl bg-surface px-3.5 py-2.5 ring-1 ring-border">
-            <span className="min-w-0 truncate text-[15px]">{email.trim()}</span>
-            <button
-              type="button"
-              onClick={changeEmail}
-              className="shrink-0 rounded-full px-2 py-0.5 text-sm font-medium text-primary hover:bg-primary-soft"
-            >
-              Change
-            </button>
-          </div>
-
-          {step === 'create' && (
-            <Field
-              label="Name"
-              autoComplete="name"
-              autoFocus
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              error={errors.name}
-            />
-          )}
-
-          <Field
-            label={step === 'create' ? 'Choose a password' : 'Password'}
-            type="password"
-            autoComplete={step === 'create' ? 'new-password' : 'current-password'}
-            autoFocus={step === 'password'}
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            hint={step === 'create' ? 'At least 8 characters.' : undefined}
-            error={errors.password}
-          />
-
-          <button type="submit" className={submitClass}>
-            {step === 'create' ? 'Create account' : 'Log in'}
-          </button>
-        </form>
-      )}
+      <button
+        type="button"
+        onClick={continueWithGoogle}
+        className="flex h-11 w-full items-center justify-center gap-3 rounded-full bg-background text-[15px] font-medium ring-1 ring-border transition hover:bg-hover focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+      >
+        <GoogleMark />
+        Continue with Google
+      </button>
     </AuthCard>
+  )
+}
+
+/** Google's "G", as its sign-in button guidelines ask for. */
+function GoogleMark() {
+  return (
+    <svg viewBox="0 0 48 48" className="size-5" aria-hidden="true">
+      <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z" />
+      <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z" />
+      <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z" />
+      <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z" />
+    </svg>
   )
 }

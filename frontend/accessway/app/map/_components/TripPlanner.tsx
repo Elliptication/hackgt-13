@@ -1,6 +1,7 @@
 'use client'
 
 import { ArrowRight, Crosshair, LoaderCircle, MapPin, MapPinPlus, X } from 'lucide-react'
+import { useState } from 'react'
 
 import { AccessBadge } from '@/components/AccessBadge'
 import type { Place } from '@/types/places'
@@ -21,6 +22,11 @@ type Props = {
   to: Endpoint
   /** Which field new search picks land in. */
   active: 'from' | 'to'
+  /** What's typed in the active field. */
+  query: string
+  onQuery: (value: string) => void
+  /** id of the results list the fields search into. */
+  resultsId: string
   onActivate: (which: 'from' | 'to') => void
   onClear: (which: 'from' | 'to') => void
   onUseMyLocation: (which: 'from' | 'to') => void
@@ -40,6 +46,9 @@ function Field({
   which,
   endpoint,
   active,
+  query,
+  onQuery,
+  resultsId,
   onActivate,
   onClear,
   onUseMyLocation,
@@ -52,6 +61,9 @@ function Field({
   which: 'from' | 'to'
   endpoint: Endpoint
   active: boolean
+  query: string
+  onQuery: (value: string) => void
+  resultsId: string
   onActivate: () => void
   onClear: () => void
   onUseMyLocation: () => void
@@ -61,19 +73,30 @@ function Field({
   locationStatus: 'idle' | 'locating' | 'error'
   locationMessage: string | null
 }) {
+  const [focused, setFocused] = useState(false)
+
   const mine = endpoint.useMyLocation
   // "My location" was chosen but the browser couldn't (or wouldn't) say where.
   const failed = mine && !hasLocation && locationStatus === 'error'
   const finding = mine && !hasLocation && !failed
   const filled = (mine && !failed) || endpoint.place !== null
   const text = mine ? (finding ? 'Finding your location…' : 'Your location') : (endpoint.place?.name ?? '')
+
+  // Typing in the box searches. While you're in it (or have typed something
+  // that hasn't been picked yet) it shows your search; otherwise what's set.
+  const editing = active && (focused || query !== '')
+  const value = editing ? query : filled ? text : ''
+  const name = which === 'from' ? 'Starting point' : 'Destination'
+
   const placeholder = failed
     ? (locationMessage ?? "Couldn't find your location")
     : pinning
       ? 'Now click anywhere on the map'
-      : which === 'from'
-        ? 'Your location, a search, or a pin'
-        : 'Search, or drop a pin'
+      : editing && filled
+        ? text
+        : which === 'from'
+          ? 'Your location, a place, or a pin'
+          : 'Search for a place'
 
   return (
     <div
@@ -87,26 +110,60 @@ function Field({
         <MapPin className="size-4 shrink-0 text-subtle" aria-hidden="true" />
       )}
 
-      <button
-        type="button"
-        onClick={onActivate}
-        className="min-w-0 flex-1 text-left"
-        aria-label={`${which === 'from' ? 'Starting point' : 'Destination'}${filled ? `: ${text}` : ', not set'}`}
-      >
+      <label className="min-w-0 flex-1 cursor-text">
         <span className="block text-[11px] tracking-wide text-muted uppercase">
           {which === 'from' ? 'From' : 'To'}
         </span>
-        <span
-          className={`flex items-center gap-1.5 truncate text-sm ${filled && !finding ? 'font-medium' : 'text-muted'}`}
-          title={failed ? (locationMessage ?? undefined) : undefined}
-        >
-          {finding && <LoaderCircle className="size-3.5 shrink-0 motion-safe:animate-spin" aria-hidden="true" />}
-          {mine && !finding && !failed && <span className="size-2 shrink-0 rounded-full bg-[#0b6bcb]" aria-hidden="true" />}
-          <span className="truncate">{filled ? text : placeholder}</span>
+        <span className="flex items-center gap-1.5" title={failed ? (locationMessage ?? undefined) : undefined}>
+          {!editing && finding && (
+            <LoaderCircle className="size-3.5 shrink-0 text-muted motion-safe:animate-spin" aria-hidden="true" />
+          )}
+          {!editing && mine && !finding && !failed && (
+            <span className="size-2 shrink-0 rounded-full bg-[#0b6bcb]" aria-hidden="true" />
+          )}
+          <input
+            type="text"
+            value={value}
+            onChange={(e) => onQuery(e.target.value)}
+            onFocus={() => {
+              setFocused(true)
+              onActivate()
+            }}
+            onBlur={() => setFocused(false)}
+            onKeyDown={(e) => {
+              if (e.key === 'Escape') {
+                onQuery('')
+                e.currentTarget.blur()
+              }
+            }}
+            placeholder={placeholder}
+            aria-label={`${name}${filled ? `: ${text}` : ''}. Type to search.`}
+            aria-controls={resultsId}
+            aria-autocomplete="list"
+            autoComplete="off"
+            spellCheck={false}
+            // The whole field lights up when active, so the global focus outline
+            // would just draw a second box inside it.
+            style={{ outline: 'none' }}
+            className={`w-full min-w-0 truncate bg-transparent text-sm outline-none placeholder:text-muted ${
+              filled && !editing && !finding ? 'font-medium' : ''
+            } ${finding && !editing ? 'text-muted' : ''}`}
+          />
         </span>
-      </button>
+      </label>
 
-      {filled ? (
+      {editing && query ? (
+        <button
+          type="button"
+          // Keep focus in the box, so clearing lets you type again straight away.
+          onMouseDown={(e) => e.preventDefault()}
+          onClick={() => onQuery('')}
+          aria-label="Clear search"
+          className="grid size-7 shrink-0 place-items-center rounded-full text-muted hover:bg-hover hover:text-foreground"
+        >
+          <X className="size-3.5" aria-hidden="true" />
+        </button>
+      ) : filled ? (
         <button
           type="button"
           onClick={onClear}
@@ -117,17 +174,15 @@ function Field({
         </button>
       ) : (
         <span className="flex shrink-0 items-center gap-0.5">
-          {(!mine || failed) && (
-            <button
-              type="button"
-              onClick={onUseMyLocation}
-              title={failed ? 'Try finding my location again' : 'Use my location'}
-              aria-label={`Use my location as the ${which === 'from' ? 'starting point' : 'destination'}`}
-              className="grid size-8 place-items-center rounded-full text-primary hover:bg-hover"
-            >
-              <Crosshair className="size-4" aria-hidden="true" />
-            </button>
-          )}
+          <button
+            type="button"
+            onClick={onUseMyLocation}
+            title={failed ? 'Try finding my location again' : 'Use my location'}
+            aria-label={`Use my location as the ${which === 'from' ? 'starting point' : 'destination'}`}
+            className="grid size-8 place-items-center rounded-full text-primary hover:bg-hover"
+          >
+            <Crosshair className="size-4" aria-hidden="true" />
+          </button>
           <button
             type="button"
             onClick={onDropPin}
@@ -148,6 +203,9 @@ export function TripPlanner({
   from,
   to,
   active,
+  query,
+  onQuery,
+  resultsId,
   onActivate,
   onClear,
   onUseMyLocation,
@@ -163,10 +221,14 @@ export function TripPlanner({
 }: Props) {
   return (
     <div className="flex flex-col gap-2 border-b border-border px-4 pt-1 pb-4">
+      <h1 className="sr-only">Plan a trip</h1>
       <Field
         which="from"
         endpoint={from}
         active={active === 'from'}
+        query={active === 'from' ? query : ''}
+        onQuery={onQuery}
+        resultsId={resultsId}
         onActivate={() => onActivate('from')}
         onClear={() => onClear('from')}
         onUseMyLocation={() => onUseMyLocation('from')}
@@ -181,6 +243,9 @@ export function TripPlanner({
         which="to"
         endpoint={to}
         active={active === 'to'}
+        query={active === 'to' ? query : ''}
+        onQuery={onQuery}
+        resultsId={resultsId}
         onActivate={() => onActivate('to')}
         onClear={() => onClear('to')}
         onUseMyLocation={() => onUseMyLocation('to')}

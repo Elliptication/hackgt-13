@@ -2,8 +2,8 @@
 
 import dynamic from 'next/dynamic'
 import Link from 'next/link'
-import { Accessibility, Camera, Crosshair, Footprints, LoaderCircle, PanelLeftClose, PanelLeftOpen, Search, TriangleAlert, X } from 'lucide-react'
-import { useCallback, useId, useMemo, useRef, useState } from 'react'
+import { Accessibility, Crosshair, Footprints, LoaderCircle, PanelLeftClose, PanelLeftOpen, TriangleAlert } from 'lucide-react'
+import { useCallback, useId, useMemo, useState } from 'react'
 
 import { AccessBadge } from '@/components/AccessBadge'
 
@@ -64,8 +64,7 @@ export function MapView({ features: initialFeatures, notice = null }: MapViewPro
 
   const { user } = useAuth()
   const panelId = useId()
-  const searchId = useId()
-  const searchRef = useRef<HTMLInputElement>(null)
+  const resultsId = useId()
 
   const { position: myLocation, status: locationStatus, message: locationMessage, locate } = useGeolocation()
   const origin: LatLng | null = myLocation
@@ -90,10 +89,11 @@ export function MapView({ features: initialFeatures, notice = null }: MapViewPro
     setZoom(level)
   }, [])
 
-  /** Clicking From or To makes it the one being set, and puts you in the search box. */
+  /** Clicking into From or To makes it the one being searched for. */
   function activate(which: 'from' | 'to') {
+    // A half-typed search belongs to the field it was typed in.
+    if (which !== active) setQuery('')
     setActive(which)
-    searchRef.current?.focus()
   }
 
   function chooseMyLocation(which: 'from' | 'to') {
@@ -275,6 +275,9 @@ export function MapView({ features: initialFeatures, notice = null }: MapViewPro
               from={from}
               to={to}
               active={active}
+              query={query}
+              onQuery={setQuery}
+              resultsId={resultsId}
               onActivate={activate}
               onClear={(which) => (which === 'from' ? setFrom(EMPTY) : setTo(EMPTY))}
               onDropPin={(which) => setPinningFor((current) => (current === which ? null : which))}
@@ -292,37 +295,7 @@ export function MapView({ features: initialFeatures, notice = null }: MapViewPro
               locationMessage={locationMessage}
             />
 
-            <div className="p-4 pb-2">
-              <h1 className="sr-only">
-                <label htmlFor={searchId}>Search for a place</label>
-              </h1>
-              <div className="relative">
-                <Search className="pointer-events-none absolute top-1/2 left-3.5 size-[18px] -translate-y-1/2 text-subtle" aria-hidden="true" />
-                <input
-                  ref={searchRef}
-                  id={searchId}
-                  type="search"
-                  value={query}
-                  onChange={(e) => setQuery(e.target.value)}
-                  onFocus={() => undefined}
-                  placeholder={active === 'from' ? 'Set the starting point' : 'Search for a destination'}
-                  autoComplete="off"
-                  className="h-12 w-full rounded-full bg-surface pr-10 pl-11 text-[15px] ring-1 ring-border transition-shadow focus-visible:bg-background focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
-                />
-                {query && (
-                  <button
-                    type="button"
-                    onClick={() => setQuery('')}
-                    aria-label="Clear search"
-                    className="absolute top-1/2 right-2.5 grid size-7 -translate-y-1/2 place-items-center rounded-full text-muted hover:bg-hover hover:text-foreground"
-                  >
-                    <X className="size-4" aria-hidden="true" />
-                  </button>
-                )}
-              </div>
-            </div>
-
-            <div className="min-h-0 flex-1 overflow-y-auto px-2 pb-4">
+            <div id={resultsId} className="min-h-0 flex-1 overflow-y-auto px-2 pt-3 pb-4">
               {searching && (
                 <p className="flex items-center gap-2 px-3 py-4 text-sm text-muted" role="status">
                   <LoaderCircle className="size-4 motion-safe:animate-spin" aria-hidden="true" />

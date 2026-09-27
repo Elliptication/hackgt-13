@@ -1,3 +1,21 @@
+export const GOOGLE_LOGIN_URL = 'https://api.accessway.tech/auth/login'
+
+/**
+ * Returns the signed-in user as JSON `{ id, name, email }` (status 401 when
+ * nobody is signed in). Called with cookies included, so if it's on another
+ * origin your backend needs CORS with `allow_credentials=True` and this app's
+ * origin allowed. e.g. 'http://localhost:6767/auth/me'
+ */
+export const CURRENT_USER_URL = 'https://api.accessway.tech/auth/me'
+export const LOGOUT_URL = 'https://api.accessway.tech/auth/logout'
+
+/** The full address the Google button goes to, carrying where to come back to. */
+export function googleLoginHref(next: string): string {
+  const url = new URL(GOOGLE_LOGIN_URL, window.location.origin)
+  url.searchParams.set('next', next)
+  return url.toString()
+}
+
 const DEFAULT_NEXT = '/contribute'
 
 /**
