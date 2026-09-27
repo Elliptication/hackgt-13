@@ -3,24 +3,22 @@
 import { Camera, CheckCheck } from 'lucide-react'
 import Link from 'next/link'
 
-import { useContributions } from '@/hooks/useContributions'
 
 export type ContributeTab = 'add' | 'review'
 
 export function Tabs({ active }: { active: ContributeTab }) {
-  const { contributions, userId, myVotes } = useContributions()
-  const toReview = contributions.filter(
-    (c) => c.status === 'pending' && c.submittedBy !== userId && !myVotes[c.id],
-  ).length
-
+  // No count on the review tab. It used to be the length of the sample list,
+  // which is gone; the real number lives behind `/features` and fetching it here
+  // would mean a second request for the same rows the queue already asks for.
+  // Better nothing than a number that is not true.
   const tabs = [
     { id: 'add' as const, label: 'Add a photo', icon: Camera },
-    { id: 'review' as const, label: 'Review photos', icon: CheckCheck, count: toReview },
+    { id: 'review' as const, label: 'Review photos', icon: CheckCheck },
   ]
 
   return (
     <nav aria-label="Contribute" className="mt-10 flex gap-1 rounded-full bg-hover p-1 sm:w-fit">
-      {tabs.map(({ id, label, icon: Icon, count }) => {
+      {tabs.map(({ id, label, icon: Icon }) => {
         const selected = id === active
         return (
           <Link
@@ -34,11 +32,6 @@ export function Tabs({ active }: { active: ContributeTab }) {
           >
             <Icon className="size-4" aria-hidden="true" />
             {label}
-            {!!count && (
-              <span className="grid min-w-5 place-items-center rounded-full bg-primary px-1.5 text-xs text-primary-foreground">
-                {count}
-              </span>
-            )}
           </Link>
         )
       })}

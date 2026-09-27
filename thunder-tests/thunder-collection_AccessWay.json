@@ -1,0 +1,369 @@
+{
+  "client": "Thunder Client",
+  "collectionName": "AccessWay API",
+  "dateExported": "2026-09-27T08:08:34.000Z",
+  "version": "1.2",
+  "folders": [],
+  "requests": [
+    {
+      "_id": "af28fc8e-9908-5cd9-9283-336d71a4ca02",
+      "colId": "b7f3a1c2-0000-4000-8000-accessway0001",
+      "containerId": "",
+      "name": "features - by area (the broken one)",
+      "url": "{{baseUrl}}/features?lat=33.7756&long=-84.3963&radius=3",
+      "method": "GET",
+      "sortNum": 10000,
+      "created": "2026-09-27T08:08:34.000Z",
+      "modified": "2026-09-27T08:08:34.000Z",
+      "headers": [],
+      "params": [
+        {
+          "name": "lat",
+          "value": "33.7756",
+          "isPath": false
+        },
+        {
+          "name": "long",
+          "value": "-84.3963",
+          "isPath": false
+        },
+        {
+          "name": "radius",
+          "value": "3",
+          "isPath": false
+        }
+      ],
+      "docs": "Param is `long`, NOT lon/lng. Radius is in MILES (backend divides by 69).\n\nI get [] at every radius. Two suspected causes:\n1. utils.py uses math.cos(lat) with lat in degrees -> negative -> the long box inverts.\n2. POST /contributions/ writes only the `location` geometry, never the lat/long columns the RPC reads.",
+      "tests": []
+    },
+    {
+      "_id": "d1990ff7-fcd0-5895-bf71-c00f878cdcce",
+      "colId": "b7f3a1c2-0000-4000-8000-accessway0001",
+      "containerId": "",
+      "name": "features - by area, huge radius",
+      "url": "{{baseUrl}}/features?lat=33.7756&long=-84.3963&radius=500",
+      "method": "GET",
+      "sortNum": 20000,
+      "created": "2026-09-27T08:08:34.000Z",
+      "modified": "2026-09-27T08:08:34.000Z",
+      "headers": [],
+      "params": [
+        {
+          "name": "lat",
+          "value": "33.7756",
+          "isPath": false
+        },
+        {
+          "name": "long",
+          "value": "-84.3963",
+          "isPath": false
+        },
+        {
+          "name": "radius",
+          "value": "500",
+          "isPath": false
+        }
+      ],
+      "docs": "500 miles covers most of the southeast US. Still [] for me - which is why I think it's the box maths, not the data.",
+      "tests": []
+    },
+    {
+      "_id": "58b41162-9361-5234-8462-cad78e73f634",
+      "colId": "b7f3a1c2-0000-4000-8000-accessway0001",
+      "containerId": "",
+      "name": "features - by area, map-sized radius",
+      "url": "{{baseUrl}}/features?lat=33.7756&long=-84.3963&radius=0.2",
+      "method": "GET",
+      "sortNum": 30000,
+      "created": "2026-09-27T08:08:34.000Z",
+      "modified": "2026-09-27T08:08:34.000Z",
+      "headers": [],
+      "params": [
+        {
+          "name": "lat",
+          "value": "33.7756",
+          "isPath": false
+        },
+        {
+          "name": "long",
+          "value": "-84.3963",
+          "isPath": false
+        },
+        {
+          "name": "radius",
+          "value": "0.2",
+          "isPath": false
+        }
+      ],
+      "docs": "What the MAP actually sends, per tile (useCommunityFeatures.ts:76). A tiny radius is a different failure mode from the 3-mile one, worth testing separately.",
+      "tests": []
+    },
+    {
+      "_id": "665ee811-8449-5e0a-adb0-001010a96b3b",
+      "colId": "b7f3a1c2-0000-4000-8000-accessway0001",
+      "containerId": "",
+      "name": "features - by id (12)",
+      "url": "{{baseUrl}}/features/12",
+      "method": "GET",
+      "sortNum": 40000,
+      "created": "2026-09-27T08:08:34.000Z",
+      "modified": "2026-09-27T08:08:34.000Z",
+      "headers": [],
+      "params": [
+        {
+          "name": "id",
+          "value": "12",
+          "isPath": true
+        }
+      ],
+      "docs": "Feature behind contribution 10. 404 for me, and absent from openapi.json - which is the stronger signal that it isn't deployed.",
+      "tests": []
+    },
+    {
+      "_id": "9e54b9f7-da6d-579f-8b17-a3003145d5e4",
+      "colId": "b7f3a1c2-0000-4000-8000-accessway0001",
+      "containerId": "",
+      "name": "features - by id (19)",
+      "url": "{{baseUrl}}/features/19",
+      "method": "GET",
+      "sortNum": 50000,
+      "created": "2026-09-27T08:08:34.000Z",
+      "modified": "2026-09-27T08:08:34.000Z",
+      "headers": [],
+      "params": [
+        {
+          "name": "id",
+          "value": "19",
+          "isPath": true
+        }
+      ],
+      "docs": "",
+      "tests": []
+    },
+    {
+      "_id": "130487cf-6ffa-58ca-aad0-2b3662da8a5e",
+      "colId": "b7f3a1c2-0000-4000-8000-accessway0001",
+      "containerId": "",
+      "name": "features - by id (20)",
+      "url": "{{baseUrl}}/features/20",
+      "method": "GET",
+      "sortNum": 60000,
+      "created": "2026-09-27T08:08:34.000Z",
+      "modified": "2026-09-27T08:08:34.000Z",
+      "headers": [],
+      "params": [
+        {
+          "name": "id",
+          "value": "20",
+          "isPath": true
+        }
+      ],
+      "docs": "",
+      "tests": []
+    },
+    {
+      "_id": "ea3afcbe-69b6-5e62-b064-ef569b5173c9",
+      "colId": "b7f3a1c2-0000-4000-8000-accessway0001",
+      "containerId": "",
+      "name": "contributions - list all",
+      "url": "{{baseUrl}}/contributions/",
+      "method": "GET",
+      "sortNum": 70000,
+      "created": "2026-09-27T08:08:34.000Z",
+      "modified": "2026-09-27T08:08:34.000Z",
+      "headers": [],
+      "params": [],
+      "docs": "TRAILING SLASH REQUIRED. /contributions 307s to /contributions/.\nTakes no params - no bbox, no limit. Returns the whole table.\nThis one works: 3 rows with image_path.",
+      "tests": []
+    },
+    {
+      "_id": "ab772917-625c-5cd8-880c-3abdfeb325ed",
+      "colId": "b7f3a1c2-0000-4000-8000-accessway0001",
+      "containerId": "",
+      "name": "contributions - id for feature 12",
+      "url": "{{baseUrl}}/contributions/by_feature/12",
+      "method": "GET",
+      "sortNum": 80000,
+      "created": "2026-09-27T08:08:34.000Z",
+      "modified": "2026-09-27T08:08:34.000Z",
+      "headers": [],
+      "params": [
+        {
+          "name": "feature_id",
+          "value": "12",
+          "isPath": true
+        }
+      ],
+      "docs": "Works. Returns {\"contribution_id\":10}.",
+      "tests": []
+    },
+    {
+      "_id": "f9119ff7-310e-559f-8a3f-473adb2edeaf",
+      "colId": "b7f3a1c2-0000-4000-8000-accessway0001",
+      "containerId": "",
+      "name": "contributions - init upload (AUTH)",
+      "url": "{{baseUrl}}/contributions/init?lat=33.7774&lon=-84.3963&type=ramp&file_type=.png",
+      "method": "GET",
+      "sortNum": 90000,
+      "created": "2026-09-27T08:08:34.000Z",
+      "modified": "2026-09-27T08:08:34.000Z",
+      "headers": [
+        {
+          "name": "Cookie",
+          "value": "jwt={{jwt}}"
+        }
+      ],
+      "params": [
+        {
+          "name": "lat",
+          "value": "33.7774",
+          "isPath": false
+        },
+        {
+          "name": "lon",
+          "value": "-84.3963",
+          "isPath": false
+        },
+        {
+          "name": "type",
+          "value": "ramp",
+          "isPath": false
+        },
+        {
+          "name": "file_type",
+          "value": ".png",
+          "isPath": false
+        }
+      ],
+      "docs": "NOTE: `lon` here, but `long` on GET /features. Easy trip-up.\nNeeds the jwt cookie -> set the `jwt` env var first, else 401 {\"detail\":\"No token found\"}.\nReturns { secret, signed_url, path }.",
+      "tests": []
+    },
+    {
+      "_id": "e9ca2f7e-2486-5530-a78f-84fd470ac836",
+      "colId": "b7f3a1c2-0000-4000-8000-accessway0001",
+      "containerId": "",
+      "name": "vote - upvote contribution 10 (AUTH)",
+      "url": "{{baseUrl}}/vote/?contribution_id=10&upvote=true",
+      "method": "POST",
+      "sortNum": 100000,
+      "created": "2026-09-27T08:08:34.000Z",
+      "modified": "2026-09-27T08:08:34.000Z",
+      "headers": [
+        {
+          "name": "Cookie",
+          "value": "jwt={{jwt}}"
+        }
+      ],
+      "params": [
+        {
+          "name": "contribution_id",
+          "value": "10",
+          "isPath": false
+        },
+        {
+          "name": "upvote",
+          "value": "true",
+          "isPath": false
+        }
+      ],
+      "docs": "Deployed version takes ONLY contribution_id + upvote. user_id is gone - identity comes from the cookie.\nSame vote twice = no-op. Opposite vote flips it.\nVerifies at total_votes > 5 AND net/total > 0.6.",
+      "tests": []
+    },
+    {
+      "_id": "c19f3368-97ce-5ab7-b6cf-b9cedfe831d3",
+      "colId": "b7f3a1c2-0000-4000-8000-accessway0001",
+      "containerId": "",
+      "name": "vote - downvote contribution 10 (AUTH)",
+      "url": "{{baseUrl}}/vote/?contribution_id=10&upvote=false",
+      "method": "POST",
+      "sortNum": 110000,
+      "created": "2026-09-27T08:08:34.000Z",
+      "modified": "2026-09-27T08:08:34.000Z",
+      "headers": [
+        {
+          "name": "Cookie",
+          "value": "jwt={{jwt}}"
+        }
+      ],
+      "params": [
+        {
+          "name": "contribution_id",
+          "value": "10",
+          "isPath": false
+        },
+        {
+          "name": "upvote",
+          "value": "false",
+          "isPath": false
+        }
+      ],
+      "docs": "",
+      "tests": []
+    },
+    {
+      "_id": "d70dd2bb-b255-5b15-9ca6-46ad490358a0",
+      "colId": "b7f3a1c2-0000-4000-8000-accessway0001",
+      "containerId": "",
+      "name": "auth - who am I (AUTH)",
+      "url": "{{baseUrl}}/auth/me",
+      "method": "GET",
+      "sortNum": 120000,
+      "created": "2026-09-27T08:08:34.000Z",
+      "modified": "2026-09-27T08:08:34.000Z",
+      "headers": [
+        {
+          "name": "Cookie",
+          "value": "jwt={{jwt}}"
+        }
+      ],
+      "params": [],
+      "docs": "Fastest way to check your jwt env var is right. 200 = cookie good, 401 = not.",
+      "tests": []
+    },
+    {
+      "_id": "2ebeef9c-7b7f-57d3-9d4f-a93ab0962f2b",
+      "colId": "b7f3a1c2-0000-4000-8000-accessway0001",
+      "containerId": "",
+      "name": "openapi - what is actually deployed",
+      "url": "{{baseUrl}}/openapi.json",
+      "method": "GET",
+      "sortNum": 130000,
+      "created": "2026-09-27T08:08:34.000Z",
+      "modified": "2026-09-27T08:08:34.000Z",
+      "headers": [],
+      "params": [],
+      "docs": "The authoritative list of live routes. If /features/{id} isn't in here, the worker doesn't know it.",
+      "tests": []
+    },
+    {
+      "_id": "dc469317-0002-59a5-9310-fd820fcf7397",
+      "colId": "b7f3a1c2-0000-4000-8000-accessway0001",
+      "containerId": "",
+      "name": "LOCAL - dev stub /features/12",
+      "url": "{{localUrl}}/api/dev/features/12",
+      "method": "GET",
+      "sortNum": 140000,
+      "created": "2026-09-27T08:08:34.000Z",
+      "modified": "2026-09-27T08:08:34.000Z",
+      "headers": [],
+      "params": [],
+      "docs": "My local fixture standing in for /features/{id} while it's unshipped. Dev only - 404s in a production build.\nNeeds the Next dev server running on :3000.",
+      "tests": []
+    },
+    {
+      "_id": "1d2af690-46ad-57f6-abf2-c6034dc11d1f",
+      "colId": "b7f3a1c2-0000-4000-8000-accessway0001",
+      "containerId": "",
+      "name": "LOCAL - photo bytes from Supabase",
+      "url": "{{supabaseUrl}}/storage/v1/object/public/contribution_images/0040861ad66e458c52744f06ec3a93d9.png",
+      "method": "GET",
+      "sortNum": 150000,
+      "created": "2026-09-27T08:08:34.000Z",
+      "modified": "2026-09-27T08:08:34.000Z",
+      "headers": [],
+      "params": [],
+      "docs": "The public bucket URL the frontend builds from image_path. Returns a real PNG (200, ~1.6MB).",
+      "tests": []
+    }
+  ]
+}

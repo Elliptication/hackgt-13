@@ -45,6 +45,12 @@ type Props = {
   onPinDrop?: (at: LatLng) => void
   /** Approved community photos, matched to nearby features. */
   contributions?: Contribution[]
+  /**
+   * Photos from `GET /contributions/`, keyed by the feature id they belong to.
+   * An exact join on `feature_id`, so unlike `contributions` there is no
+   * distance guessing involved.
+   */
+  photosByFeature?: Map<string, { id: string; photoUrl?: string }[]>
   /** Points the user has dropped, so they can see where they landed. */
   markers?: { id: string; at: LatLng; label: string }[]
   /** Reports the viewport as `minLng,minLat,maxLng,maxLat` so data follows the map. */
@@ -140,7 +146,10 @@ function ReportBounds({ onChange }: { onChange?: (bbox: string, zoom: number) =>
   return null
 }
 
-const NO_PHOTOS: Contribution[] = []
+/** What a popup needs of a photo, whichever source it came from. */
+type PinPhoto = { id: string; photoUrl?: string; description?: string; name?: string }
+
+const NO_PHOTOS: PinPhoto[] = []
 const noop = () => {}
 
 /** Closer than this, features are full pins; further out, lightweight dots. */
@@ -176,7 +185,7 @@ function FeatureLayer({
   features: AccessFeature[]
   selectedId: string | null
   onSelect: (id: string) => void
-  photosById: Map<string, Contribution[]>
+  photosById: Map<string, PinPhoto[]>
 }) {
   const map = useMap()
   const { bounds, zoom } = useVisibleBounds()
@@ -275,6 +284,7 @@ export default function LeafletMap({
   pinMode = false,
   onPinDrop,
   contributions = [],
+  photosByFeature,
   markers = [],
 }: Props) {
   // Centre on the first location fix, unless the person has moved on by then.
@@ -285,15 +295,32 @@ export default function LeafletMap({
   // once when the data changes, instead of for every pin on every render.
   const photosById = useMemo(() => {
     const NEAR = 0.0003 ** 2
-    const out = new Map<string, Contribution[]>()
+    const out = new Map<string, PinPhoto[]>()
+
+    // Photos the API already ties to a feature. An exact key beats a radius, so
+    // these go on first and the proximity pass only fills gaps.
+    if (photosByFeature?.size) {
+      for (const f of features) {
+        const exact = photosByFeature.get(f.id)
+        if (exact?.length) out.set(f.id, exact)
+      }
+    }
+
     const withPhotos = contributions.filter((c) => c.photoUrl)
     if (withPhotos.length === 0) return out
     for (const f of features) {
       const near = withPhotos.filter((c) => (c.lat - f.lat) ** 2 + (c.lng - f.lng) ** 2 < NEAR)
-      if (near.length > 0) out.set(f.id, near)
+      if (near.length === 0) continue
+      const existing = out.get(f.id)
+      // A photo uploaded in this session is on the API too, so the same shot
+      // would otherwise appear twice in the popup.
+      out.set(
+        f.id,
+        existing ? [...existing, ...near.filter((c) => !existing.some((p) => p.id === c.contributionId))] : near,
+      )
     }
     return out
-  }, [features, contributions])
+  }, [features, contributions, photosByFeature])
   return (
     <MapContainer
       center={DEFAULT_CENTER}
