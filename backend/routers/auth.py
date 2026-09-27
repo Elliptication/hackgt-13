@@ -18,9 +18,9 @@ CLIENT_ID = env.GOOGLE_CLIENT_ID
 CLIENT_SECRET = env.GOOGLE_CLIENT_SECRET
 JWT_SECRET = env.JWT_SECRET
 
-returnUrl = "https://accessway.tech"
+returnUrl = "https://api.accessway.tech"
 
-REDIRECT_URI = getattr(env, 'GOOGLE_REDIRECT_URI', returnUrl + '/callback')
+REDIRECT_URI = getattr(env, 'GOOGLE_REDIRECT_URI', returnUrl + '/auth/callback')
 FRONTEND_URL = returnUrl
 
 AUTH_URL = 'https://accounts.google.com/o/oauth2/v2/auth'
