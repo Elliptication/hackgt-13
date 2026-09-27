@@ -7,7 +7,6 @@ import jwt
 import datetime
 import secrets
 import urllib.parse
-from urllib.parse import urlparse
 
 
 router = APIRouter(prefix='/auth', tags=['auth'])
@@ -48,7 +47,7 @@ def login():
     }
     auth_url = f"{AUTH_URL}?{urllib.parse.urlencode(params)}"
     response = RedirectResponse(auth_url)
-    response.set_cookie(key='oauth_state', value=state, httponly=True, secure=True, samesite='lax', domain=urlparse(FRONTEND_URL).netloc)
+    response.set_cookie(key='oauth_state', value=state, httponly=True, secure=True, samesite='lax')
     return response
 
 
@@ -102,9 +101,9 @@ async def callback(request: Request):
 
     # Set JWT in cookie
     response = RedirectResponse(url=FRONTEND_URL)
-    response.set_cookie(key='jwt', value=token, httponly=True, secure=True, samesite='lax', domain=urlparse(FRONTEND_URL).netloc)
-    response.set_cookie(key='user_id', value=str(user_id), httponly=True, secure=True, samesite='lax', domain=urlparse(FRONTEND_URL).netloc)
-    response.set_cookie(key='username', value=str(name), httponly=True, secure=True, samesite='lax', domain=urlparse(FRONTEND_URL).netloc)
+    response.set_cookie(key='jwt', value=token, httponly=True, secure=True, samesite='lax')
+    response.set_cookie(key='user_id', value=str(user_id), httponly=True, secure=True, samesite='lax')
+    response.set_cookie(key='username', value=str(name), httponly=True, secure=True, samesite='lax')
     return response
 
 
@@ -129,9 +128,8 @@ def get_current_user(request: Request):
 @router.post("/logout")
 def logout():
     response = JSONResponse({"message": "Logged out"})
-    cookie_domain = urlparse(FRONTEND_URL).netloc
     for cookie_name in ("jwt", "user_id", "username"):
-        response.delete_cookie(key=cookie_name, domain=cookie_domain, path="/")
+        response.delete_cookie(key=cookie_name, path="/")
     return response
 
 

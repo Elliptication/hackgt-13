@@ -12,6 +12,7 @@ app = fastapi.FastAPI()
 
 origins = [
     "https://accessway.tech",
+    "https://www.accessway.tech",
     "http://localhost:3000",
 ]
 
